@@ -1,6 +1,6 @@
 # BossReports
 
-Weekly reports app for BOSS chapters. Super Admin (Bhushan) creates chapters. Each chapter president maintains teams, captains, and members.
+Weekly reports app for BOSS chapters. Super Admin (Bhushan) creates chapters and assigns each chapter president. The president maintains teams and captains. Team captains add members and enter scores — members do not sign in.
 
 ## Run locally
 

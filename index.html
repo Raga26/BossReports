@@ -154,14 +154,13 @@ td.name{text-align:left;font-weight:750}td.name .biz{font-size:11px;color:var(--
   <div class="login-card">
     <img class="logo" src="logo.png" alt="BhuFix" onerror="this.style.display='none'">
     <h1 id="loginTitle">BossReports</h1>
-    <p class="sub">Bhushan (Super Admin) creates and maintains every chapter. The chapter president adds teams and members. Each team captain and member signs in to their own team.</p>
+    <p class="sub">Super Admin creates each chapter and its president. The president adds teams and captains. Team captains add members and enter scores — members do not sign in.</p>
     <div class="field" id="lcw"><label>Chapter</label><select id="lc" onchange="loginPeople()"></select></div>
     <div class="row2">
       <div class="field"><label>Role</label>
         <select id="lr" onchange="loginFields()">
           <option value="president">President</option>
           <option value="captain">Team Captain</option>
-          <option value="member">Team Member</option>
           <option value="platform">Super Admin</option>
         </select>
       </div>
@@ -240,14 +239,14 @@ const isCaptain=()=>session&&session.role==="captain";
 const canAdminChapter=()=>isPresident()||(isSuperAdmin()&&!!session.chapterId);
 const canScore=()=>canAdminChapter()||isCaptain();
 const canManageTeam=t=>canAdminChapter()||(isCaptain()&&session.teamId===t.id);
-const canEditMember=(t,m)=>canManageTeam(t)||(session.role==="member"&&(session.memberId===m.id||(session.teamId===t.id&&session.name===m.name)));
+const canEditMember=(t,_m)=>canManageTeam(t);
 
 let token=sessionStorage.getItem("BOSS_TOKEN")||"";
 let session=null, view="home", selectedTeam=0, selectedWeek=0, reportPick=[], reportOpen=null;
 let dirtyScores=new Set();
 let profileDraft=null;
 let chaptersList=[];
-let db={chapter:null,chapterName:"BOSS",city:"",meetingDay:2,chairmanName:"",month:thisMonth(),teams:[],scores:{},reports:[],captains:[],lastSaved:Date.now()};
+let db={chapter:null,chapterName:"BOSS",city:"",meetingDay:2,chairmanName:"",presidentName:"",month:thisMonth(),teams:[],scores:{},reports:[],captains:[],lastSaved:Date.now()};
 
 async function api(method, path, body){
   const headers={ "Content-Type":"application/json" };
@@ -295,7 +294,10 @@ function dp(member, cls="dp"){ return member.photo?`<img class="${cls}" src="${m
 function findTM(tid,mid){ const team=teamById(tid); return {team, member:team&&(team.members||[]).find(m=>m.id===mid)}; }
 function captainName(team){ const c=(db.captains||[]).find(x=>x.teamId===team.id); return c?c.name:""; }
 
-function togglePw(id, btn){ const x=document.getElementById(id); x.type=x.type==="password"?"text":"password"; btn.textContent=x.type==="password"?"👁":"🙈"; }
+function togglePw(id, btn){ const x=document.getElementById(id); if(!x) return; x.type=x.type==="password"?"text":"password"; if(btn) btn.textContent=x.type==="password"?"👁":"🙈"; }
+function pwHtml(id, placeholder){
+  return `<div class="pw"><input id="${id}" type="password" autocomplete="new-password" placeholder="${esc(placeholder||"")}"><button class="eye" type="button" onclick="togglePw('${id}',this)" aria-label="Show or hide password">👁</button></div>`;
+}
 
 async function loadChapters(){
   try{ chaptersList=await api("GET","/api/auth/chapters"); }
@@ -362,7 +364,7 @@ async function loadState(){
     db.chapters=data.chapters||[];
     db.chapter=null;
     db.teams=[]; db.scores={}; db.reports=[]; db.captains=[];
-    db.chapterName="All chapters"; db.city="Tamil Nadu";
+    db.chapterName="All chapters"; db.city="Tamil Nadu"; db.presidentName="";
     return;
   }
   db.chapter=data.chapter;
@@ -370,6 +372,7 @@ async function loadState(){
   db.city=data.chapter.city||"";
   db.meetingDay=Number(data.chapter.meetingDay??2);
   db.chairmanName=data.chapter.chairmanName||"";
+  db.presidentName=data.chapter.presidentName||"";
   db.teams=data.teams||[];
   db.scores=data.scores||{};
   db.reports=data.reports||[];
@@ -541,9 +544,7 @@ function pageHome(){
 }
 
 function visibleMembers(team){
-  let list=(team.members||[]).slice().sort((a,b)=>a.name.localeCompare(b.name));
-  if(session.role==="member") list=list.filter(m=>m.name===session.name);
-  return list;
+  return (team.members||[]).slice().sort((a,b)=>a.name.localeCompare(b.name));
 }
 function scoreBlock(team, week){
   const members=visibleMembers(team);
@@ -661,7 +662,7 @@ function pageTeams(){
   }
   if(selectedTeam>=teams.length) selectedTeam=0;
   const t=teams[selectedTeam]||teams[0];
-  return `<div class="page-title"><div><h2>Teams & members</h2><p>${isCaptain()?"You can edit only your team.":canAdminChapter()?"Create teams, assign a captain, then add members so they can sign in.":"Pick a team."}</p></div>
+  return `<div class="page-title"><div><h2>Teams & members</h2><p>${isCaptain()?"Add members and fill in their details. You enter scores for your team.":canAdminChapter()?"Create teams, assign a captain, then the captain adds members.":"Pick a team."}</p></div>
     ${canAdminChapter()?`<button class="btn orange" onclick="addTeam()">+ Add team</button>`:""}</div>
     <div class="card"><div class="head">Select team</div><div class="body">
       <div class="filters"><div><label>Team</label>
@@ -683,13 +684,14 @@ function teamCard(t){
     <div class="notice ok" style="margin-top:12px"><b>Team captain:</b> ${esc(cap||"Not assigned yet")}</div>
     ${canAdminChapter()?`<div class="team-grid" style="margin-top:10px">
       <div class="field"><label>Captain name</label><input id="capName_${t.id}" value="${esc(cap)}" placeholder="Captain full name"></div>
-      <div class="field"><label>Captain password</label><input id="capPass_${t.id}" type="password" placeholder="Set or reset password"></div>
+      <div class="field"><label>Captain password</label>${pwHtml("capPass_"+t.id, "Set or reset password")}</div>
     </div>
     <div class="actions" style="margin-top:8px"><button class="btn orange sm" onclick="saveCaptain('${t.id}')">Save / assign captain</button></div>`:""}
     <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px">
       <b>Members</b>
       ${edit?`<button class="btn sm orange" onclick="addMember('${t.id}')">+ Add member</button>`:""}
     </div>
+    <p style="color:var(--muted);font-size:12px;margin:0 0 8px">Members do not sign in. The team captain adds their details here and enters scores.</p>
     ${(t.members||[]).map(m=>`<div class="member-row">
       <button class="profile-btn" onclick="openProfile('${t.id}','${m.id}')">${dp(m)}</button>
       <div><b>${esc(m.name)}</b><div style="color:var(--muted);font-size:12px">${esc(m.businessName||"No business name")}</div></div>
@@ -801,7 +803,6 @@ function openProfile(tid,mid){
         <div class="field"><label>Website</label><input id="pf_website" ${edit?"":"disabled"} placeholder="https://" value="${esc(member.website||"")}"></div>
         <div class="field"><label>Social / WhatsApp</label><input id="pf_social" ${edit?"":"disabled"} value="${esc(member.social||"")}"></div>
         <div class="field"><label>Location</label><input id="pf_location" ${edit?"":"disabled"} value="${esc(member.location||"")}"></div>
-        ${canManageTeam(team)?`<div class="field"><label>Member login password</label><input id="pf_pass" type="password" placeholder="Set or reset so they can sign in"></div>`:""}
       </div>
     </div>
     ${edit?`<div class="modal-foot"><button class="btn orange" type="button" onclick="saveProfile('${tid}','${mid}')">Save profile</button></div>`:""}
@@ -819,18 +820,9 @@ async function saveProfile(tid,mid){
     location:(document.getElementById("pf_location").value||"").trim(),
     photo: profileDraft ? profileDraft.photo : (member.photo||"")
   };
-  const passEl=document.getElementById("pf_pass");
-  if(passEl&&passEl.value.trim()) payload.password=passEl.value.trim();
   try{
     await api("PATCH","/api/members/"+mid, payload);
-    const wasSelf=session.role==="member"&&(session.memberId===mid||session.name===member.name);
-    delete payload.password;
     Object.assign(member, payload);
-    if(wasSelf){
-      session.name=payload.name;
-      session.memberId=mid;
-      try{ sessionStorage.setItem("BOSS_SESSION", JSON.stringify(session)); }catch(e){}
-    }
     closeModal();
     render();
     toast("Profile saved");
@@ -986,25 +978,36 @@ async function importReportFile(file){
 function pageSettings(){
   if(isSuperAdmin() && !session.chapterId) return pagePlatform();
   const admin=canAdminChapter();
+  const hasPresident=!!db.presidentName;
   return `<div class="page-title"><div><h2>Settings</h2><p>Chapter options for ${esc(db.chapterName)}. ${admin?"Super admin and the president can change these.":"Captains cannot change chapter-wide settings."}</p></div></div>
     <div class="card"><div class="head">Chapter</div><div class="body">
       <div class="team-grid">
         <div class="field"><label>Chapter name</label><input id="ch_name" ${admin?"":"disabled"} value="${esc(db.chapterName)}"></div>
         <div class="field"><label>City</label><input id="ch_city" ${admin?"":"disabled"} value="${esc(db.city)}"></div>
-        <div class="field"><label>Chairman (name only)</label><input id="ch_chair" ${admin?"":"disabled"} value="${esc(db.chairmanName)}"></div>
+        <div class="field"><label>Chairman (display name only)</label><input id="ch_chair" ${admin?"":"disabled"} value="${esc(db.chairmanName)}" placeholder="Shown on reports, not a login"></div>
         <div class="field"><label>Meeting weekday</label>
           <select id="ch_day" ${admin?"":"disabled"}>
             ${DAY.map((d,i)=>`<option value="${i}" ${i===db.meetingDay?"selected":""}>${d}</option>`).join("")}
           </select>
         </div>
         <div class="field"><label>Reporting month</label>${monthPickerHtml()}</div>
-        <div class="field"><label>My password</label><div class="pw"><input id="apw" type="password" placeholder="New password"><button class="eye" type="button" onclick="togglePw('apw',this)">👁</button></div></div>
+        <div class="field"><label>My password</label>${pwHtml("apw","New password")}</div>
       </div>
       <div class="actions" style="margin-top:10px">
         ${admin?`<button class="btn orange sm" onclick="saveChapter()">Save chapter</button>`:""}
         <button class="btn orange sm" onclick="saveMyPassword()">Update my password</button>
       </div>
     </div></div>
+    ${isSuperAdmin()?`<div class="card"><div class="head">Chapter president (login)</div><div class="body">
+      <div class="notice ok">${hasPresident?"This is who signs in as President for this chapter. Chairman above is only a display name.":"Create the president login for this chapter. They will add teams and captains."}</div>
+      <div class="team-grid">
+        <div class="field"><label>President name</label><input id="pres_name" value="${esc(db.presidentName)}" placeholder="Full name"></div>
+        <div class="field"><label>President password</label>${pwHtml("pres_pass", hasPresident?"Leave blank to keep current password":"Password for president login")}</div>
+      </div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn orange sm" onclick="savePresident()">${hasPresident?"Update president":"Create president"}</button>
+      </div>
+    </div></div>`:""}
     <div class="card"><div class="head">Point columns (fixed)</div><div class="body">
       <div class="scroll"><table style="min-width:0"><tr><th>Activity</th><th>Points</th><th>How it is entered</th></tr>
         ${A.map(a=>`<tr><td class="name">${esc(a.name)}</td><td>${a.points}</td><td>${a.kind==="check"?"Weekly present / absent":a.kind==="monthCheck"?"One tick per month":"Type a number"}</td></tr>`).join("")}
@@ -1012,31 +1015,32 @@ function pageSettings(){
     </div></div>`;
 }
 function pagePlatform(){
-  return `<div class="page-title"><div><h2>Chapters — Super Admin</h2><p>Create a chapter, assign its president, then open it to add teams, captains and members.</p></div></div>
+  return `<div class="page-title"><div><h2>Chapters — Super Admin</h2><p>Create a chapter with its president login, then open it to add teams and captains.</p></div></div>
     <div class="card"><div class="head">New chapter</div><div class="body">
+      <div class="notice ok">The president signs in to this chapter. Chairman is optional and can be set later under Settings.</div>
       <div class="team-grid">
         <div class="field"><label>Chapter name</label><input id="ncName" placeholder="BOSS Agro Hub"></div>
         <div class="field"><label>City</label><input id="ncCity" placeholder="Udumalpet"></div>
-        <div class="field"><label>President name</label><input id="ncPres" placeholder="President"></div>
-        <div class="field"><label>President password</label><input id="ncPass" type="password" placeholder="Password for president login"></div>
+        <div class="field"><label>President name</label><input id="ncPres" placeholder="President full name"></div>
+        <div class="field"><label>President password</label>${pwHtml("ncPass","Password for president login")}</div>
       </div>
       <div class="actions" style="margin-top:10px"><button class="btn orange" onclick="createChapter()">Create chapter</button></div>
     </div></div>
     <div class="card"><div class="head">Existing chapters</div><div class="body">
       ${(db.chapters||[]).map(c=>`<div class="member-row" style="grid-template-columns:1fr auto">
-        <div><b>${esc(c.name)}</b><div style="color:var(--muted);font-size:12px">${esc(c.city||"—")} · ${c.teams||0} teams · ${c.members||0} members</div></div>
+        <div><b>${esc(c.name)}</b><div style="color:var(--muted);font-size:12px">${esc(c.city||"—")} · President: ${esc(c.presidentName||"Not assigned")} · ${c.teams||0} teams · ${c.members||0} members</div></div>
         <button class="btn orange sm" type="button" onclick="openChapter('${c.id}')">Open chapter</button>
       </div>`).join("")||"<p>None yet. Create the first chapter above.</p>"}
     </div></div>`;
 }
 async function createChapter(){
+  const name=(document.getElementById("ncName").value||"").trim();
+  const city=(document.getElementById("ncCity").value||"").trim();
+  const presidentName=(document.getElementById("ncPres").value||"").trim();
+  const presidentPassword=document.getElementById("ncPass").value;
+  if(!name||!presidentName||!presidentPassword) return toast("Chapter name, president name and password required");
   try{
-    const created=await api("POST","/api/chapters",{
-      name:document.getElementById("ncName").value,
-      city:document.getElementById("ncCity").value,
-      presidentName:document.getElementById("ncPres").value,
-      presidentPassword:document.getElementById("ncPass").value
-    });
+    const created=await api("POST","/api/chapters",{ name, city, presidentName, presidentPassword });
     toast("Chapter created");
     await openChapter(created.id);
   }catch(e){ toast(e.message); }
@@ -1053,6 +1057,23 @@ async function saveChapter(){
     db.chapterName=name; db.city=city; db.chairmanName=chairmanName; db.meetingDay=meetingDay;
     db.chapter.name=name; db.chapter.city=city; db.chapter.chairmanName=chairmanName; db.chapter.meetingDay=meetingDay;
     toast("Chapter saved"); render();
+  }catch(e){ toast(e.message); }
+}
+async function savePresident(){
+  if(!isSuperAdmin()||!db.chapter) return;
+  const name=(document.getElementById("pres_name").value||"").trim();
+  const password=(document.getElementById("pres_pass").value||"");
+  if(!name) return toast("President name is required");
+  const existed=!!db.presidentName;
+  if(!existed && !password) return toast("Password is required to create a president");
+  try{
+    const body={ name };
+    if(password) body.password=password;
+    await api("POST","/api/users/president", body);
+    db.presidentName=name;
+    if(db.chapter) db.chapter.presidentName=name;
+    toast(existed?"President saved":"President created");
+    render();
   }catch(e){ toast(e.message); }
 }
 async function saveMyPassword(){

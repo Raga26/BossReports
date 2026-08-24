@@ -178,6 +178,7 @@ app.get("/api/auth/chapters", async (_req, res) => {
 app.get("/api/auth/people", async (req, res) => {
   const { chapterId, role } = req.query;
   if (!role) return res.status(400).json({ error: "role required" });
+  if (role === "member") return res.json([]);
   if (role === "platform") {
     const users = await User.find({ role: "platform" }).select("name").lean();
     return res.json(users.map(u => ({ name: u.name })));
@@ -190,6 +191,7 @@ app.get("/api/auth/people", async (req, res) => {
 app.post("/api/auth/login", async (req, res) => {
   const { chapterId, role, name, password } = req.body || {};
   if (!role || !name || !password) return res.status(400).json({ error: "Role, name and password required" });
+  if (role === "member") return res.status(403).json({ error: "Members do not sign in. Ask your team captain to enter details and scores." });
   const q = role === "platform" ? { role: "platform", name } : { role, name, chapterId };
   const user = await User.findOne(q);
   if (!user) return res.status(401).json({ error: "No account with that name for this role" });
@@ -227,11 +229,14 @@ app.get("/api/state", auth, async (req, res) => {
     const memberCounts = await Member.aggregate([{ $group: { _id: "$chapterId", n: { $sum: 1 } } }]);
     const tMap = Object.fromEntries(teamCounts.map(x => [id(x._id), x.n]));
     const mMap = Object.fromEntries(memberCounts.map(x => [id(x._id), x.n]));
+    const presidents = await User.find({ role: "president" }).select("name chapterId").lean();
+    const pMap = Object.fromEntries(presidents.map(p => [id(p.chapterId), p.name]));
     return res.json({
       role: "platform",
       chapters: chapters.map(c => ({
         id: id(c._id), name: c.name, city: c.city || "", meetingDay: c.meetingDay,
-        chairmanName: c.chairmanName || "", teams: tMap[id(c._id)] || 0, members: mMap[id(c._id)] || 0
+        chairmanName: c.chairmanName || "", presidentName: pMap[id(c._id)] || "",
+        teams: tMap[id(c._id)] || 0, members: mMap[id(c._id)] || 0
       })),
       chapter: null, teams: [], scores: {}, reports: [], captains: []
     });
@@ -267,6 +272,8 @@ app.get("/api/state", auth, async (req, res) => {
     while (scoreMap[tid][mid].length < 5) scoreMap[tid][mid].push(EMPTY());
   });
 
+  const presidentUser = await User.findOne({ chapterId: chapter._id, role: "president" }).lean();
+
   const captainUsers = isChapterAdmin(u, id(chapter._id))
     ? await User.find({ chapterId: chapter._id, role: "captain" }).lean()
     : [];
@@ -277,7 +284,10 @@ app.get("/api/state", auth, async (req, res) => {
     role: u.role,
     userId: u.userId,
     teamId: u.teamId,
-    chapter: { id: id(chapter._id), name: chapter.name, city: chapter.city || "", meetingDay: chapter.meetingDay, chairmanName: chapter.chairmanName || "" },
+    chapter: {
+      id: id(chapter._id), name: chapter.name, city: chapter.city || "", meetingDay: chapter.meetingDay,
+      chairmanName: chapter.chairmanName || "", presidentName: presidentUser ? presidentUser.name : ""
+    },
     teams: teams.map(t => ({
       id: id(t._id),
       name: t.name,
@@ -375,6 +385,37 @@ app.delete("/api/teams/:id", auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/api/users/president", auth, async (req, res) => {
+  if (!isPlatform(req.user)) return res.status(403).json({ error: "Only the super admin can create or replace a chapter president" });
+  const chapterId = actingChapterId(req) || req.body.chapterId;
+  const { name, password } = req.body || {};
+  if (!chapterId) return res.status(400).json({ error: "Open a chapter first" });
+  const presidentName = String(name || "").trim();
+  if (!presidentName) return res.status(400).json({ error: "President name required" });
+  const chapter = await Chapter.findById(chapterId);
+  if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+  let user = await User.findOne({ chapterId: chapter._id, role: "president" });
+  if (!user && (!password || String(password).length < 4)) {
+    return res.status(400).json({ error: "Password must be at least 4 characters to create a president" });
+  }
+  if (password && String(password).length < 4) {
+    return res.status(400).json({ error: "Password must be at least 4 characters" });
+  }
+  if (user) {
+    user.name = presidentName;
+    if (password) user.passwordHash = await bcrypt.hash(String(password), 10);
+    await user.save();
+  } else {
+    user = await User.create({
+      chapterId: chapter._id,
+      role: "president",
+      name: presidentName,
+      passwordHash: await bcrypt.hash(String(password), 10)
+    });
+  }
+  res.json({ id: id(user._id), name: user.name });
+});
+
 app.post("/api/users/captain", auth, async (req, res) => {
   const chapterId = actingChapterId(req);
   if (!isChapterAdmin(req.user, chapterId)) return res.status(403).json({ error: "Only the super admin or president can create team captains" });
@@ -421,16 +462,6 @@ app.post("/api/teams/:id/members", auth, async (req, res) => {
     location: String(location || "").trim(),
     photo: String(photo || "")
   });
-  const existing = await User.findOne({ chapterId: team.chapterId, role: "member", name: memberName, teamId: team._id });
-  if (!existing) {
-    await User.create({
-      chapterId: team.chapterId,
-      role: "member",
-      name: memberName,
-      teamId: team._id,
-      passwordHash: await bcrypt.hash(String(req.body.password || "member123"), 10)
-    });
-  }
   res.json({
     id: id(member._id), name: member.name, businessName: member.businessName,
     website: member.website, social: member.social, location: member.location, photo: member.photo
@@ -442,23 +473,11 @@ app.patch("/api/members/:id", auth, async (req, res) => {
   if (!member) return res.status(404).json({ error: "Not found" });
   const team = await Team.findById(member.teamId);
   if (!canSeeTeam(req.user, team)) return res.status(403).json({ error: "Not allowed" });
-  const memberSelf = req.user.role === "member" && (
-    (req.user.memberId && id(member._id) === req.user.memberId) ||
-    (!req.user.memberId && String(req.user.teamId) === String(member.teamId) && req.user.name === member.name)
-  );
-  if (!(isPlatform(req.user) || isPresident(req.user) || isCaptain(req.user) || memberSelf)) return res.status(403).json({ error: "Not allowed" });
-  const oldName = member.name;
+  if (!(isPlatform(req.user) || isPresident(req.user) || isCaptain(req.user))) return res.status(403).json({ error: "Not allowed" });
   ["name", "businessName", "website", "social", "location", "photo"].forEach(k => {
     if (req.body[k] != null) member[k] = req.body[k];
   });
   await member.save();
-  if (req.body.name && req.body.name !== oldName) {
-    await User.updateMany({ chapterId: member.chapterId, role: "member", name: oldName, teamId: member.teamId }, { $set: { name: member.name } });
-  }
-  if (req.body.password && String(req.body.password).length >= 4 && (isPlatform(req.user) || isPresident(req.user) || isCaptain(req.user))) {
-    const hash = await bcrypt.hash(String(req.body.password), 10);
-    await User.updateMany({ chapterId: member.chapterId, role: "member", name: member.name, teamId: member.teamId }, { $set: { passwordHash: hash } });
-  }
   res.json({ ok: true });
 });
 
