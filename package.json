@@ -1,0 +1,13 @@
+{
+  "name": "bossreports",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BossReports — weekly chapter reports for BOSS hubs",
+  "scripts": {
+    "start": "node server/index.js",
+    "start:dev": "npm start --prefix server"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

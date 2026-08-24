@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: bossreports
+    runtime: node
+    plan: free
+    buildCommand: npm install --prefix server
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PLATFORM_NAME
+        value: Bhushan
+      - key: PLATFORM_PASSWORD
+        sync: false

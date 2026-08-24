@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#102033">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>BossReports</title>
+<style>
+:root{
+  --navy:#102033;--navy2:#1a334d;--ink:#122033;--muted:#66758a;
+  --orange:#f15a24;--orange2:#d94e1c;--bg:#eef1f6;--card:#fff;
+  --line:#e2e8ef;--soft:#f6f8fb;--green:#1f8a4c;--greenbg:#e7f6ec;
+  --orange2:#d94e1c;--line:#e2e8ef;--red:#c42b1c;
+  --gold:#c98900;--goldbg:#fff4d6;--red:#c42b1c;--shadow:0 8px 24px rgba(16,32,51,.08);
+}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit}button{cursor:pointer}img{max-width:100%}
+.hidden{display:none!important}button:disabled{opacity:.45;cursor:not-allowed}
+h1,h2,h3,p{margin:0}
+
+/* Login */
+.login{min-height:100dvh;display:grid;place-items:center;padding:20px;background:radial-gradient(1200px 600px at 10% -10%,#2a4d73,transparent),linear-gradient(160deg,#0c1826,#17324c)}
+.login-card{width:min(440px,100%);background:#fff;border-radius:18px;padding:26px 22px 22px;box-shadow:0 30px 80px #0006}
+.login-card img.logo{height:42px;width:auto;display:block;margin:0 auto 14px}
+.login-card h1{text-align:center;font-size:22px;letter-spacing:-.3px}
+.login-card .sub{text-align:center;color:var(--muted);font-size:13px;line-height:1.5;margin:6px 0 18px}
+.field{margin-bottom:10px}label{display:block;font-size:11px;font-weight:800;letter-spacing:.04em;color:#5b6b7d;margin-bottom:5px}
+input,select,textarea{width:100%;border:1px solid #cfd8e3;border-radius:10px;padding:11px 12px;min-height:44px;background:#fff;outline:0}
+input:focus,select:focus,textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px #f15a2422}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pw{position:relative}.pw input{padding-right:46px}
+.pw .eye{position:absolute;right:4px;top:4px;width:36px;height:36px;border:0;background:transparent;font-size:16px}
+
+/* Shell */
+.app{min-height:100dvh;display:flex;flex-direction:column}
+.top{height:58px;background:#fff;border-bottom:2px solid var(--orange);display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 14px;position:sticky;top:0;z-index:40;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand img{height:32px;width:auto}
+.brand b{display:block;font-size:14px;line-height:1.1}
+.brand small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.top-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.saved{font-size:11px;color:var(--green);font-weight:700;white-space:nowrap}
+.saved.warn{color:var(--orange)}
+.userchip{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700}
+.avatar,.dp{width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid #d5dee8;background:#eef3f8;display:grid;place-items:center;font-size:11px;font-weight:800;color:#1a334d}
+.layout{display:grid;grid-template-columns:210px 1fr;flex:1;min-height:0}
+aside{background:var(--navy);color:#dce7f2;padding:12px 0;display:flex;flex-direction:column}
+.nav{padding:11px 16px;font-size:13px;cursor:pointer;display:flex;gap:8px;align-items:center}
+.nav.active,.nav:hover{background:#1d354d;border-left:3px solid var(--orange);padding-left:13px}
+.sidefoot{margin-top:auto;padding:16px;font-size:11px;color:#9fb0c3}
+.sidefoot img{height:28px;background:#fff;border-radius:6px;padding:3px 6px}
+main{padding:16px;min-width:0}
+.page-title{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.page-title h2{font-size:20px}
+.page-title p{color:var(--muted);font-size:13px;margin-top:3px}
+
+/* UI bits */
+.btn{border:0;border-radius:10px;padding:10px 14px;min-height:42px;font-weight:750;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.orange{background:var(--orange);color:#fff}.btn.orange:hover{background:var(--orange2)}
+.btn.navy{background:var(--navy);color:#fff}.btn.light{background:#eef2f6;color:#243041}
+.btn.green{background:var(--green);color:#fff}.btn.danger{background:var(--red);color:#fff}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.btn.sm{min-height:34px;padding:6px 10px;font-size:12px;border-radius:8px}
+.iconbtn{width:42px;height:42px;border:0;border-radius:10px;background:#eef2f6}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+.stat{background:#fff;border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
+.stat .l{font-size:11px;color:var(--muted);font-weight:700}
+.stat .n{font-size:22px;font-weight:800;margin-top:4px;letter-spacing:-.4px}
+.stat .s{font-size:11px;color:var(--muted);margin-top:2px}
+.card{background:#fff;border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+.head{background:linear-gradient(90deg,#102033,#1c3a56);color:#fff;padding:11px 14px;font-size:13px;font-weight:800;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.head .actions{flex-shrink:0}
+.body{padding:14px}
+.modal-foot{position:sticky;bottom:0;background:#fff;padding:12px 14px 14px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.notice{background:var(--goldbg);border-left:4px solid var(--gold);padding:10px 12px;font-size:13px;line-height:1.45;border-radius:8px;margin-bottom:12px}
+.notice.ok{background:var(--greenbg);border-left-color:var(--green)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.filters > div{min-width:160px;flex:1}
+.month-pick{display:grid;grid-template-columns:1.4fr .9fr;gap:8px}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;min-height:38px;font-size:12px;font-weight:700}
+.pill.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Tables */
+.scroll{overflow:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;min-width:980px}
+th,td{border:1px solid var(--line);padding:6px;text-align:center;font-size:12px}
+th{background:#f3f6fa;font-size:10px;letter-spacing:.02em}
+td.name{text-align:left;font-weight:750}td.name .biz{font-size:11px;color:var(--muted);font-weight:500}
+.total{background:var(--greenbg);font-weight:800}.neg{color:var(--red);font-weight:700}
+.check{width:22px;height:22px;accent-color:var(--orange)}
+.step{display:flex;align-items:center;justify-content:center;gap:4px}
+.step b{min-width:18px}
+.step button{width:28px;height:28px;border:1px solid var(--line);background:#fff;border-radius:8px;font-weight:800;flex-shrink:0}
+.score-num{width:58px;min-height:36px;padding:4px 6px;text-align:center;font-size:14px;font-weight:800}
+
+/* Member cards (mobile scores) */
+.mcards{display:flex;flex-direction:column;gap:10px}
+.mcard{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
+.mcard .who{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.mcard .who .dp{width:44px;height:44px;font-size:13px}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.act{background:var(--soft);border-radius:10px;padding:8px}
+.act label{margin:0 0 4px;font-size:10px}
+.act.neg{background:#fdeeee}.act.pay{background:var(--goldbg)}.act.att{background:var(--greenbg)}
+.totalsbar{display:flex;justify-content:space-between;margin-top:10px;font-size:13px;font-weight:800}
+.profile-btn{border:0;background:transparent;padding:0;border-radius:50%}
+
+/* Team mgmt */
+.member-row{display:grid;grid-template-columns:40px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.team-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+
+/* Reports */
+.report-view{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px}
+.report-view h1{font-size:20px;margin-bottom:4px}
+.report-view h2{font-size:15px;margin:16px 0 8px}
+.report-list{display:flex;flex-direction:column;gap:8px}
+.report-item{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--soft)}
+
+/* Modal / toast */
+.back{position:fixed;inset:0;background:#0008;display:grid;place-items:center;z-index:80;padding:16px}
+.modal{background:#fff;border-radius:16px;width:min(560px,100%);max-height:90dvh;overflow:auto;box-shadow:0 24px 70px #0005}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#122033;color:#fff;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:700;z-index:90;box-shadow:var(--shadow)}
+.bottom{display:none}
+
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr}aside{display:none}
+  main{padding:12px 10px 84px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .stat:last-child{grid-column:1/-1}
+  .row2,.team-grid,.acts{grid-template-columns:1fr}
+  .desktop-only{display:none!important}
+  .bottom{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;height:64px;background:#fff;border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+  .bottom button{border:0;background:#fff;color:#6b7789;font-size:10px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+  .bottom button.on{color:var(--orange)}
+  .bottom i{font-style:normal;font-size:16px}
+  .brand small,.saved-wide{display:none}
+  table{min-width:860px}
+}
+@media(min-width:901px){.mobile-only{display:none!important}}
+@media print{
+  body{background:#fff}body *{visibility:hidden}
+  #printArea, #printArea *{visibility:visible}
+  #printArea{position:absolute;left:0;top:0;width:100%;padding:12px}
+  @page{size:A4 landscape;margin:10mm}
+}
+</style>
+</head>
+<body>
+<div id="login" class="login">
+  <div class="login-card">
+    <img class="logo" src="logo.png" alt="BhuFix" onerror="this.style.display='none'">
+    <h1 id="loginTitle">BossReports</h1>
+    <p class="sub">Bhushan (Super Admin) creates and maintains every chapter. The chapter president adds teams and members. Each team captain and member signs in to their own team.</p>
+    <div class="field" id="lcw"><label>Chapter</label><select id="lc" onchange="loginPeople()"></select></div>
+    <div class="row2">
+      <div class="field"><label>Role</label>
+        <select id="lr" onchange="loginFields()">
+          <option value="president">President</option>
+          <option value="captain">Team Captain</option>
+          <option value="member">Team Member</option>
+          <option value="platform">Super Admin</option>
+        </select>
+      </div>
+      <div class="field" id="lpw"><label>Person</label><select id="lp"></select></div>
+    </div>
+    <div class="field"><label>Password</label>
+      <div class="pw"><input id="lpass" type="password" autocomplete="current-password"><button class="eye" type="button" onclick="togglePw('lpass',this)">👁</button></div>
+    </div>
+    <button class="btn orange" style="width:100%" onclick="doLogin()">Sign in</button>
+    <div id="lmsg" class="notice hidden" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <header class="top">
+    <div class="brand">
+      <img src="logo.png" alt="BhuFix" onerror="this.style.display='none'">
+      <div><b id="chapterTop">BossReports</b><small>Weekly reports · Powered by BhuFix</small></div>
+    </div>
+    <div class="top-right">
+      <span class="saved saved-wide" id="saveHint"></span>
+      <button class="btn orange sm" id="saveBtn" onclick="manualSave()">Save scores</button>
+      <div class="userchip"><span id="topAvatar"></span><span id="topName"></span></div>
+      <button class="btn light sm" onclick="logout()">Logout</button>
+    </div>
+  </header>
+  <div class="layout">
+    <aside id="side"></aside>
+    <main id="main"></main>
+  </div>
+  <nav class="bottom" id="bottom"></nav>
+</div>
+<div id="modal"></div>
+<div id="toast"></div>
+<div id="printArea" class="hidden"></div>
+
+<script>
+const A=[
+  {key:"attendance",name:"Attendance",short:"Attend",points:100,kind:"check"},
+  {key:"oneToOne",name:"1 to 1",short:"1 to 1",points:100,kind:"count"},
+  {key:"referral",name:"Referral",short:"Referral",points:100,kind:"count"},
+  {key:"payment",name:"On-Time Payment",short:"Paid",points:200,kind:"monthCheck"},
+  {key:"business",name:"Business Given",short:"Business",points:200,kind:"count"},
+  {key:"visitor",name:"Best 45 Visitor",short:"Visitor",points:200,kind:"count"},
+  {key:"power",name:"Power Meet",short:"Power",points:500,kind:"count"},
+  {key:"induction",name:"Induction",short:"Induct",points:500,kind:"count"},
+  {key:"late",name:"Late Payment",short:"Late pay",points:-100,kind:"count"},
+  {key:"better",name:"Better Connection Next Week",short:"Better",points:-200,kind:"count"},
+  {key:"discipline",name:"Violation of Discipline",short:"Discipline",points:-200,kind:"count"}
+];
+const DAY=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const emptyRow=()=>A.map(()=>0);
+const emptyWeeks=()=>Array.from({length:5},emptyRow);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const thisMonth=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")};
+function parseMonthParts(v){
+  const [ys,ms]=String(v||thisMonth()).split("-");
+  let y=Number(ys), m=Number(ms);
+  if(!Number.isFinite(m)||m<1||m>12) m=new Date().getMonth()+1;
+  if(!Number.isFinite(y)||y<=0) y=new Date().getFullYear();
+  else if(y<100) y=2000+y;
+  else if(y<2000||y>2100) y=new Date().getFullYear();
+  return {y,m};
+}
+function normMonth(v){
+  const {y,m}=parseMonthParts(v);
+  return y+"-"+String(m).padStart(2,"0");
+}
+const initials=n=>(n||"?").split(/\s+/).map(x=>x[0]||"").join("").slice(0,2).toUpperCase();
+const roleLabel=r=>({platform:"Super Admin",president:"President",captain:"Team Captain",member:"Member"})[r]||r;
+const isPresident=()=>session&&session.role==="president";
+const isSuperAdmin=()=>session&&session.role==="platform";
+const isPlatform=()=>isSuperAdmin();
+const isCaptain=()=>session&&session.role==="captain";
+const canAdminChapter=()=>isPresident()||(isSuperAdmin()&&!!session.chapterId);
+const canScore=()=>canAdminChapter()||isCaptain();
+const canManageTeam=t=>canAdminChapter()||(isCaptain()&&session.teamId===t.id);
+const canEditMember=(t,m)=>canManageTeam(t)||(session.role==="member"&&(session.memberId===m.id||(session.teamId===t.id&&session.name===m.name)));
+
+let token=sessionStorage.getItem("BOSS_TOKEN")||"";
+let session=null, view="home", selectedTeam=0, selectedWeek=0, reportPick=[], reportOpen=null;
+let dirtyScores=new Set();
+let profileDraft=null;
+let chaptersList=[];
+let db={chapter:null,chapterName:"BOSS",city:"",meetingDay:2,chairmanName:"",month:thisMonth(),teams:[],scores:{},reports:[],captains:[],lastSaved:Date.now()};
+
+async function api(method, path, body){
+  const headers={ "Content-Type":"application/json" };
+  if(token) headers.Authorization="Bearer "+token;
+  if(session&&session.role==="platform"&&session.chapterId) headers["X-Chapter-Id"]=session.chapterId;
+  const res=await fetch(path,{
+    method,
+    headers,
+    body: body==null?undefined:JSON.stringify(body)
+  });
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error||("Request failed "+res.status));
+  return data;
+}
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.innerHTML=`<div class="toast">${esc(msg)}</div>`;
+  setTimeout(()=>{ if(t.firstChild) t.innerHTML=""; },2200);
+}
+
+function meetingDates(month,day){
+  const {y,m}=parseMonthParts(month||db.month), out=[], d=new Date(y,m-1,1);
+  while(d.getMonth()===m-1){ if(d.getDay()===Number(day??db.meetingDay)) out.push(new Date(d)); d.setDate(d.getDate()+1); }
+  return out;
+}
+function weekLabels(){ return meetingDates().map((d,i)=>`Week ${i+1} · ${d.toLocaleDateString("en-GB",{day:"2-digit",month:"short"})}`); }
+function fmtMonth(v){ const {y,m}=parseMonthParts(v||db.month); return MONTHS[m-1]+" "+y; }
+function teamById(id){ return db.teams.find(t=>t.id===id); }
+function tObj(){ return db.teams[selectedTeam]||db.teams[0]||{id:"",name:"No team",businessName:"",members:[]}; }
+function visibleTeams(){ return db.teams; }
+
+function rowOf(team, member, week){
+  db.scores[team.id]??={};
+  db.scores[team.id][member.id]??=emptyWeeks();
+  const pack=db.scores[team.id][member.id];
+  pack[week]??=emptyRow();
+  while(pack[week].length<A.length) pack[week].push(0);
+  return pack[week];
+}
+function weekPts(team, member, week){ return rowOf(team,member,week).reduce((s,v,i)=>s+Number(v||0)*A[i].points,0); }
+function monthPts(team, member){ return meetingDates().reduce((s,_,w)=>s+weekPts(team,member,w),0); }
+function teamWeekPts(team, week){ return (team.members||[]).reduce((s,m)=>s+weekPts(team,m,week),0); }
+function teamMonthPts(team){ return meetingDates().reduce((s,_,w)=>s+teamWeekPts(team,w),0); }
+function dp(member, cls="dp"){ return member.photo?`<img class="${cls}" src="${member.photo}" alt="">`:`<span class="${cls}">${esc(initials(member.name))}</span>`; }
+function findTM(tid,mid){ const team=teamById(tid); return {team, member:team&&(team.members||[]).find(m=>m.id===mid)}; }
+function captainName(team){ const c=(db.captains||[]).find(x=>x.teamId===team.id); return c?c.name:""; }
+
+function togglePw(id, btn){ const x=document.getElementById(id); x.type=x.type==="password"?"text":"password"; btn.textContent=x.type==="password"?"👁":"🙈"; }
+
+async function loadChapters(){
+  try{ chaptersList=await api("GET","/api/auth/chapters"); }
+  catch(e){ chaptersList=[]; console.warn(e); }
+  const sel=document.getElementById("lc");
+  if(sel) sel.innerHTML=chaptersList.length?chaptersList.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.city?" — "+esc(c.city):""}</option>`).join(""):`<option value="">No chapters yet</option>`;
+}
+
+async function loginFields(){
+  const r=document.getElementById("lr").value;
+  document.getElementById("lcw").classList.toggle("hidden", r==="platform");
+  document.getElementById("lpw").classList.toggle("hidden", false);
+  await loginPeople();
+}
+async function loginPeople(){
+  const r=document.getElementById("lr").value;
+  const chapterId=document.getElementById("lc").value;
+  const lp=document.getElementById("lp");
+  try{
+    const q=r==="platform"?`/api/auth/people?role=platform`:`/api/auth/people?role=${encodeURIComponent(r)}&chapterId=${encodeURIComponent(chapterId)}`;
+    const people=await api("GET", q);
+    lp.innerHTML=people.length?people.map(p=>`<option>${esc(p.name)}</option>`).join(""):`<option value="">None assigned</option>`;
+  }catch(e){ lp.innerHTML=`<option value="">Could not load people</option>`; }
+}
+
+async function doLogin(){
+  const r=document.getElementById("lr").value, pw=document.getElementById("lpass").value, msg=document.getElementById("lmsg");
+  const name=document.getElementById("lp").value;
+  msg.classList.add("hidden");
+  if(!name){ msg.textContent="Choose a person."; msg.classList.remove("hidden"); return; }
+  try{
+    const body={ role:r, name, password:pw };
+    if(r!=="platform") body.chapterId=document.getElementById("lc").value;
+    const out=await api("POST","/api/auth/login", body);
+    token=out.token; session=out.user;
+    sessionStorage.setItem("BOSS_TOKEN", token);
+    sessionStorage.setItem("BOSS_SESSION", JSON.stringify(session));
+    await loadState();
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    view=isSuperAdmin()&&!session.chapterId?"settings":"home";
+    render();
+  }catch(e){ msg.textContent=e.message; msg.classList.remove("hidden"); }
+}
+function logout(){
+  if(dirtyScores.size && !confirm("You have unsaved scores. Log out anyway?")) return;
+  sessionStorage.removeItem("BOSS_TOKEN"); sessionStorage.removeItem("BOSS_SESSION"); token=""; session=null; location.reload();
+}
+function bindMemberSession(){
+  if(!session||session.role!=="member") return;
+  const team=session.teamId?teamById(session.teamId):null;
+  const m=team&&(team.members||[]).find(x=>x.id===session.memberId||x.name===session.name);
+  if(m){
+    session.memberId=m.id;
+    try{ sessionStorage.setItem("BOSS_SESSION", JSON.stringify(session)); }catch(e){}
+  }
+}
+
+async function loadState(){
+  let path="/api/state?month="+encodeURIComponent(db.month);
+  if(session&&session.role==="platform"&&session.chapterId) path+="&chapterId="+encodeURIComponent(session.chapterId);
+  const data=await api("GET", path);
+  if(data.role==="platform" && !data.chapter){
+    db.chapters=data.chapters||[];
+    db.chapter=null;
+    db.teams=[]; db.scores={}; db.reports=[]; db.captains=[];
+    db.chapterName="All chapters"; db.city="Tamil Nadu";
+    return;
+  }
+  db.chapter=data.chapter;
+  db.chapterName=data.chapter.name;
+  db.city=data.chapter.city||"";
+  db.meetingDay=Number(data.chapter.meetingDay??2);
+  db.chairmanName=data.chapter.chairmanName||"";
+  db.teams=data.teams||[];
+  db.scores=data.scores||{};
+  db.reports=data.reports||[];
+  db.captains=data.captains||[];
+  db.lastSaved=Date.now();
+  dirtyScores=new Set();
+  bindMemberSession();
+  if(session.teamId){
+    const i=db.teams.findIndex(t=>t.id===session.teamId);
+    if(i>=0) selectedTeam=i;
+  }
+  if(selectedTeam>=db.teams.length) selectedTeam=0;
+}
+
+async function restoreSession(){
+  try{
+    const s=JSON.parse(sessionStorage.getItem("BOSS_SESSION")||"null");
+    token=sessionStorage.getItem("BOSS_TOKEN")||"";
+    if(!s||!token) return;
+    session=s;
+    await loadState();
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    view=isSuperAdmin()&&!session.chapterId?"settings":"home";
+    render();
+  }catch(e){ sessionStorage.clear(); }
+}
+
+function nav(v){
+  if(v==="chapters" && isSuperAdmin()){ leaveChapter(); return; }
+  view=v;
+  if(session&&session.teamId){
+    const i=db.teams.findIndex(t=>t.id===session.teamId);
+    if(i>=0) selectedTeam=i;
+  }
+  render();
+}
+async function openChapter(id){
+  session.chapterId=id;
+  try{ sessionStorage.setItem("BOSS_SESSION", JSON.stringify(session)); }catch(e){}
+  view="home";
+  await loadState();
+  render();
+}
+async function leaveChapter(){
+  if(dirtyScores.size && !confirm("You have unsaved scores. Leave this chapter anyway?")) return;
+  session.chapterId=null;
+  try{ sessionStorage.setItem("BOSS_SESSION", JSON.stringify(session)); }catch(e){}
+  view="settings";
+  await loadState();
+  render();
+}
+function navItems(){
+  if(isSuperAdmin() && !session.chapterId) return [["⚙","Chapters","settings"]];
+  const main=[["⌂","Home","home"],["✓","Scores","scores"],["👥","Teams","teams"],["▤","Reports","reports"],["⚙","Settings","settings"]];
+  if(isSuperAdmin()) return [["↩","Chapters","chapters"], ...main];
+  return main;
+}
+function render(){
+  db.month=normMonth(db.month);
+  document.getElementById("chapterTop").textContent=db.chapterName||"BOSS";
+  document.getElementById("topName").textContent=session.name+(isSuperAdmin()?" · Super Admin":"");
+  const mem=session.memberId?db.teams.flatMap(t=>t.members||[]).find(m=>m.id===session.memberId):null;
+  document.getElementById("topAvatar").innerHTML=mem?dp(mem,"avatar"):`<span class="avatar">${esc(initials(session.name))}</span>`;
+  const items=navItems();
+  document.getElementById("side").innerHTML=items.map(x=>`<div class="nav ${view===x[2]?"active":""}" onclick="nav('${x[2]}')">${x[0]} ${x[1]}</div>`).join("")+`<div class="sidefoot"><img src="logo.png" alt=""><div style="margin-top:8px">Powered by BhuFix</div></div>`;
+  const bottom=document.getElementById("bottom");
+  bottom.style.gridTemplateColumns=`repeat(${items.length},1fr)`;
+  bottom.innerHTML=items.map(x=>`<button class="${view===x[2]?"on":""}" onclick="nav('${x[2]}')"><i>${x[0]}</i>${x[1]}</button>`).join("");
+  const page=({home:pageHome, scores:pageScores, teams:pageTeams, reports:pageReports, settings:pageSettings}[view]||pageHome)();
+  document.getElementById("main").innerHTML=page;
+  updateSaveHint();
+}
+function updateSaveHint(){
+  const el=document.getElementById("saveHint");
+  const btn=document.getElementById("saveBtn");
+  if(btn) btn.classList.toggle("hidden", !canScore());
+  if(!el) return;
+  el.classList.toggle("warn", dirtyScores.size>0);
+  if(!canScore()){ el.textContent=""; return; }
+  el.textContent=dirtyScores.size?"Unsaved scores — click Save scores":("Saved "+new Date(db.lastSaved).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}));
+}
+
+function statsHtml(){
+  if(!db.teams.length) return `<div class="notice">No teams yet. President can add teams under Teams.</div>`;
+  const ranked=db.teams.map(t=>({t,pts:teamMonthPts(t)})).sort((a,b)=>b.pts-a.pts);
+  const members=db.teams.reduce((s,t)=>s+(t.members||[]).length,0);
+  const lead=ranked[0];
+  return `<div class="stats">
+    <div class="stat"><div class="l">Teams</div><div class="n">${db.teams.length}</div></div>
+    <div class="stat"><div class="l">Members</div><div class="n">${members}</div></div>
+    <div class="stat"><div class="l">Meeting day</div><div class="n" style="font-size:18px">${DAY[db.meetingDay].slice(0,3)}</div><div class="s">${weekLabels().length} meetings this month</div></div>
+    <div class="stat"><div class="l">Points</div><div class="n">${ranked.reduce((s,x)=>s+x.pts,0).toLocaleString()}</div></div>
+    <div class="stat"><div class="l">Leading team</div><div class="n" style="color:var(--orange);font-size:18px">${esc(lead?lead.t.name:"—")}</div><div class="s">${lead?lead.pts.toLocaleString()+" pts":""}</div></div>
+  </div>`;
+}
+function yearList(){
+  const now=new Date().getFullYear();
+  const {y}=parseMonthParts(db.month);
+  const start=Math.min(2000, y);
+  const end=Math.max(now+5, y);
+  const years=[];
+  for(let n=end;n>=start;n--) years.push(n);
+  return years;
+}
+function monthPickerHtml(){
+  const {y,m}=parseMonthParts(db.month);
+  return `<div class="month-pick">
+    <select id="monthPickM" onchange="onMonthPick()">
+      ${MONTHS.map((name,i)=>`<option value="${i+1}" ${i+1===m?"selected":""}>${name}</option>`).join("")}
+    </select>
+    <select id="monthPickY" onchange="onMonthPick()">
+      ${yearList().map(yr=>`<option value="${yr}" ${yr===y?"selected":""}>${yr}</option>`).join("")}
+    </select>
+  </div>`;
+}
+function monthBar(){
+  return `<div class="filters" style="margin-bottom:10px">
+    <div><label>Reporting month</label>${monthPickerHtml()}</div>
+    <div><label>Meeting weekday</label><div class="notice ok" style="margin:0;min-height:44px;display:flex;align-items:center">${DAY[db.meetingDay]}${db.city?" · "+esc(db.city):""}</div></div>
+  </div>`;
+}
+async function onMonthPick(){
+  const mo=document.getElementById("monthPickM");
+  const yr=document.getElementById("monthPickY");
+  if(!mo||!yr) return;
+  await setMonth(yr.value+"-"+String(mo.value).padStart(2,"0"));
+}
+async function setMonth(v){
+  const next=normMonth(v);
+  if(dirtyScores.size){
+    toast("Click Save scores first, then change month");
+    render();
+    return;
+  }
+  if(next===normMonth(db.month)) return;
+  db.month=next; selectedWeek=0; await loadState(); render();
+}
+function selectors(){
+  const teams=visibleTeams();
+  const weeks=weekLabels();
+  if(selectedWeek>=weeks.length) selectedWeek=0;
+  const t=tObj();
+  const teamSelect=teams.length>1
+    ? `<div><label>Team</label><select onchange="selectedTeam=db.teams.findIndex(x=>x.id===this.value);render()">${teams.map(x=>`<option value="${x.id}" ${x.id===t.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></div>`
+    : `<div><label>Team</label><div class="notice ok" style="margin:0;min-height:44px;display:flex;align-items:center">${esc(t.name||"No team")}</div></div>`;
+  return `<div class="filters">${teamSelect}
+    <div style="flex:2"><label>Week</label><div class="pills">${weeks.map((w,i)=>`<button class="pill ${i===selectedWeek?"on":""}" onclick="selectedWeek=${i};render()">${esc(w)}</button>`).join("")}</div></div>
+  </div>`;
+}
+function rankTable(){
+  const r=db.teams.map(t=>({t,pts:teamMonthPts(t)})).sort((a,b)=>b.pts-a.pts);
+  return `<div class="scroll"><table style="min-width:0"><tr><th>Rank</th><th>Team</th><th>Focus</th><th>Month points</th></tr>
+    ${r.map((x,i)=>`<tr><td>${i+1}</td><td class="name">${esc(x.t.name)}</td><td>${esc(x.t.businessName||"—")}</td><td class="total">${x.pts.toLocaleString()}</td></tr>`).join("")||`<tr><td colspan="4">No teams</td></tr>`}
+  </table></div>`;
+}
+
+function pageHome(){
+  if(isSuperAdmin() && !session.chapterId) return pageSettings();
+  return `<div class="page-title"><div><h2>${esc(fmtMonth(db.month))}</h2><p>${esc(db.chapterName)}${db.city?" · "+esc(db.city):""} · ${weekLabels().length} ${DAY[db.meetingDay]} meetings</p></div>
+    <div class="actions">${canScore()?`<button class="btn orange sm" onclick="manualSave()">Save scores</button>`:""}<button class="btn navy sm" onclick="nav('reports')">Open reports</button></div></div>
+    ${statsHtml()+monthBar()}
+    <div class="card"><div class="head">How points work</div><div class="body">
+      <div class="notice ok"><b>Attendance:</b> present = 100 that week. <b>On-time payment:</b> one tick per month = 200. Type any count in the number box — you do not have to tap + many times.</div>
+      ${db.teams.length?selectors():""}
+    </div></div>
+    ${db.teams.length?scoreBlock(tObj(), selectedWeek):""}
+    <div class="card"><div class="head">Team ranking this month</div><div class="body">${rankTable()}</div></div>`;
+}
+
+function visibleMembers(team){
+  let list=(team.members||[]).slice().sort((a,b)=>a.name.localeCompare(b.name));
+  if(session.role==="member") list=list.filter(m=>m.name===session.name);
+  return list;
+}
+function scoreBlock(team, week){
+  const members=visibleMembers(team);
+  const locked=!canScore();
+  const dates=weekLabels();
+  return `<div class="card"><div class="head">${esc(team.name)} · ${esc(dates[week]||"Week")} <span>${esc(team.businessName||"")}</span></div><div class="body">
+    <div class="desktop-only scroll">${scoreTable(team,week,members,locked)}</div>
+    <div class="mobile-only mcards">${members.map(m=>memberCard(team,m,week,locked)).join("")||`<p>No members yet.</p>`}</div>
+  </div></div>`;
+}
+function scoreTable(team,week,members,locked){
+  return `<table><tr><th>#</th><th></th><th>Member</th>${A.map(a=>`<th>${esc(a.name)}<br>${a.points}</th>`).join("")}<th>Week</th><th>Month</th></tr>
+    ${members.map((m,i)=>{
+      const row=rowOf(team,m,week);
+      return `<tr>
+        <td>${i+1}</td>
+        <td><button class="profile-btn" onclick="openProfile('${team.id}','${m.id}')">${dp(m)}</button></td>
+        <td class="name">${esc(m.name)}<div class="biz">${esc(m.businessName||"")}</div></td>
+        ${A.map((a,ai)=>`<td>${cellControl(team,m,week,ai,row[ai],locked)}</td>`).join("")}
+        <td class="total" id="w_${m.id}">${weekPts(team,m,week).toLocaleString()}</td>
+        <td class="total" id="m_${m.id}">${monthPts(team,m).toLocaleString()}</td>
+      </tr>`;
+    }).join("")}
+    <tr><td colspan="3"><b>Team total</b></td>${A.map((a,ai)=>`<td class="total">${(team.members||[]).reduce((s,m)=>s+Number(rowOf(team,m,week)[ai]||0)*a.points,0).toLocaleString()}</td>`).join("")}
+      <td class="total">${teamWeekPts(team,week).toLocaleString()}</td><td class="total">${teamMonthPts(team).toLocaleString()}</td></tr>
+  </table>`;
+}
+function memberCard(team,m,week,locked){
+  const row=rowOf(team,m,week);
+  return `<article class="mcard">
+    <div class="who"><button class="profile-btn" onclick="openProfile('${team.id}','${m.id}')">${dp(m)}</button>
+      <div style="flex:1"><b>${esc(m.name)}</b><div style="color:var(--muted);font-size:12px">${esc(m.businessName||"No business yet")}</div></div>
+    </div>
+    <div class="acts">${A.map((a,ai)=>`<div class="act ${a.key==="attendance"?"att":a.key==="payment"?"pay":a.points<0?"neg":""}"><label>${esc(a.short)} · ${a.points}</label>${cellControl(team,m,week,ai,row[ai],locked)}</div>`).join("")}</div>
+    <div class="totalsbar"><span>Week <b id="w_${m.id}">${weekPts(team,m,week).toLocaleString()}</b></span><span>Month <b id="m_${m.id}">${monthPts(team,m).toLocaleString()}</b></span></div>
+  </article>`;
+}
+function cellControl(team,m,week,ai,val,locked){
+  const a=A[ai], dis=locked?"disabled":"";
+  if(a.kind==="check") return `<input class="check" type="checkbox" ${val>0?"checked":""} ${dis} onchange="setCheck('${team.id}','${m.id}',${week},${ai},this.checked)">`;
+  if(a.kind==="monthCheck") return `<input class="check" type="checkbox" ${Number(rowOf(team,m,0)[ai])>0?"checked":""} ${dis} onchange="setPayment('${team.id}','${m.id}',this.checked)">`;
+  const shown=Number(val||0)===0?"":Number(val||0);
+  return `<div class="step"><button type="button" ${dis} onclick="bump('${team.id}','${m.id}',${week},${ai},-1,this)">−</button>
+    <input class="score-num" type="number" min="0" inputmode="numeric" placeholder="0" value="${shown}" ${dis} oninput="setCount('${team.id}','${m.id}',${week},${ai},this.value)">
+    <button type="button" ${dis} onclick="bump('${team.id}','${m.id}',${week},${ai},1,this)">+</button></div>`;
+}
+function refreshMemberTotals(team,member){
+  document.querySelectorAll("#w_"+CSS.escape(member.id)).forEach(el=>el.textContent=weekPts(team,member,selectedWeek).toLocaleString());
+  document.querySelectorAll("#m_"+CSS.escape(member.id)).forEach(el=>el.textContent=monthPts(team,member).toLocaleString());
+}
+function markScoreDirty(team, member){
+  dirtyScores.add(team.id+"|"+member.id);
+  updateSaveHint();
+}
+async function saveScore(team, member){
+  const weeks=db.scores[team.id][member.id];
+  await api("PUT","/api/scores",{ teamId:team.id, memberId:member.id, month:db.month, weeks });
+}
+async function manualSave(){
+  if(!canScore()) return toast("Only the super admin, president or team captain can save scores");
+  const jobs=[];
+  if(dirtyScores.size){
+    for(const key of dirtyScores){
+      const [tid,mid]=key.split("|");
+      const {team,member}=findTM(tid,mid);
+      if(team&&member) jobs.push(saveScore(team,member));
+    }
+  }else{
+    const team=tObj();
+    (team.members||[]).forEach(m=>jobs.push(saveScore(team,m)));
+  }
+  if(!jobs.length) return toast("Nothing to save");
+  try{
+    await Promise.all(jobs);
+    dirtyScores.clear();
+    db.lastSaved=Date.now();
+    toast("Scores saved");
+    render();
+  }catch(e){ toast(e.message); }
+}
+function setCheck(tid,mid,week,ai,on){
+  if(!canScore()) return; const {team,member}=findTM(tid,mid); if(!member) return;
+  rowOf(team,member,week)[ai]=on?1:0; markScoreDirty(team,member); refreshMemberTotals(team,member);
+}
+function setPayment(tid,mid,on){
+  if(!canScore()) return; const {team,member}=findTM(tid,mid); if(!member) return;
+  for(let w=0;w<5;w++) rowOf(team,member,w)[3]=0;
+  rowOf(team,member,0)[3]=on?1:0; markScoreDirty(team,member); refreshMemberTotals(team,member);
+}
+function setCount(tid,mid,week,ai,v){
+  if(!canScore()) return; const {team,member}=findTM(tid,mid); if(!member) return;
+  rowOf(team,member,week)[ai]=Math.max(0, Number(v)||0);
+  markScoreDirty(team,member); refreshMemberTotals(team,member);
+}
+function bump(tid,mid,week,ai,d,btn){
+  if(!canScore()) return; const {team,member}=findTM(tid,mid); if(!member) return;
+  const row=rowOf(team,member,week); row[ai]=Math.max(0, Number(row[ai]||0)+d);
+  const inp=btn.parentElement.querySelector("input.score-num");
+  if(inp) inp.value=row[ai]||"";
+  markScoreDirty(team,member); refreshMemberTotals(team,member);
+}
+
+function pageScores(){
+  return `<div class="page-title"><div><h2>Score entry</h2><p>${canScore()?"Type the number, then click Save scores. Nothing is stored until you save.":"View only — your team captain enters points."}</p></div>
+    ${canScore()?`<button class="btn orange" onclick="manualSave()">Save scores</button>`:""}</div>
+    ${statsHtml()+(db.teams.length?selectors()+scoreBlock(tObj(),selectedWeek):"")}`;
+}
+
+function pageTeams(){
+  const teams=visibleTeams();
+  if(!teams.length){
+    return `<div class="page-title"><div><h2>Teams & members</h2><p>President creates teams, then assigns a team captain to each one.</p></div>
+      ${canAdminChapter()?`<button class="btn orange" onclick="addTeam()">+ Add team</button>`:""}</div>
+      <div class="notice">No teams in this chapter yet.</div>`;
+  }
+  if(selectedTeam>=teams.length) selectedTeam=0;
+  const t=teams[selectedTeam]||teams[0];
+  return `<div class="page-title"><div><h2>Teams & members</h2><p>${isCaptain()?"You can edit only your team.":canAdminChapter()?"Create teams, assign a captain, then add members so they can sign in.":"Pick a team."}</p></div>
+    ${canAdminChapter()?`<button class="btn orange" onclick="addTeam()">+ Add team</button>`:""}</div>
+    <div class="card"><div class="head">Select team</div><div class="body">
+      <div class="filters"><div><label>Team</label>
+        <select ${isCaptain()?"disabled":""} onchange="selectedTeam=db.teams.findIndex(x=>x.id===this.value);render()">
+          ${teams.map(x=>`<option value="${x.id}" ${x.id===t.id?"selected":""}>${esc(x.name)}</option>`).join("")}
+        </select></div></div>
+    </div></div>
+    ${teamCard(t)}`;
+}
+function teamCard(t){
+  const edit=canManageTeam(t);
+  const cap=captainName(t);
+  return `<div class="card"><div class="head">${esc(t.name)} <span>${(t.members||[]).length} members</span></div><div class="body">
+    <div class="team-grid">
+      <div class="field"><label>Team name</label><input id="tn_${t.id}" ${edit?"":"disabled"} value="${esc(t.name)}"></div>
+      <div class="field"><label>Team focus / business</label><input id="tb_${t.id}" ${edit?"":"disabled"} value="${esc(t.businessName||"")}"></div>
+    </div>
+    ${edit?`<div class="actions" style="margin-top:10px"><button class="btn orange sm" onclick="saveTeam('${t.id}')">Save team</button></div>`:""}
+    <div class="notice ok" style="margin-top:12px"><b>Team captain:</b> ${esc(cap||"Not assigned yet")}</div>
+    ${canAdminChapter()?`<div class="team-grid" style="margin-top:10px">
+      <div class="field"><label>Captain name</label><input id="capName_${t.id}" value="${esc(cap)}" placeholder="Captain full name"></div>
+      <div class="field"><label>Captain password</label><input id="capPass_${t.id}" type="password" placeholder="Set or reset password"></div>
+    </div>
+    <div class="actions" style="margin-top:8px"><button class="btn orange sm" onclick="saveCaptain('${t.id}')">Save / assign captain</button></div>`:""}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px">
+      <b>Members</b>
+      ${edit?`<button class="btn sm orange" onclick="addMember('${t.id}')">+ Add member</button>`:""}
+    </div>
+    ${(t.members||[]).map(m=>`<div class="member-row">
+      <button class="profile-btn" onclick="openProfile('${t.id}','${m.id}')">${dp(m)}</button>
+      <div><b>${esc(m.name)}</b><div style="color:var(--muted);font-size:12px">${esc(m.businessName||"No business name")}</div></div>
+      <div class="actions">
+        <button class="btn sm light" onclick="openProfile('${t.id}','${m.id}')">Edit</button>
+        ${canManageTeam(t)?`<button class="btn sm danger" onclick="deleteMember('${t.id}','${m.id}')">Delete</button>`:""}
+      </div>
+    </div>`).join("")||`<p style="color:var(--muted)">No members yet.</p>`}
+    ${canAdminChapter()&&db.teams.length?`<div class="actions" style="margin-top:12px"><button class="btn danger sm" onclick="deleteTeam('${t.id}')">Delete this team</button></div>`:""}
+  </div></div>`;
+}
+async function saveTeam(id){
+  const t=teamById(id); if(!t||!canManageTeam(t)) return;
+  const name=(document.getElementById("tn_"+id).value||"").trim();
+  const businessName=(document.getElementById("tb_"+id).value||"").trim();
+  if(!name) return toast("Team name is required");
+  t.name=name; t.businessName=businessName;
+  try{ await api("PATCH","/api/teams/"+id,{ name, businessName }); toast("Team saved"); render(); }
+  catch(e){ toast(e.message); }
+}
+function addTeam(){
+  if(!canAdminChapter()) return;
+  const suggested="Team "+(db.teams.length+1);
+  document.getElementById("modal").innerHTML=`<div class="back" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="head">New team
+      <div class="actions"><button class="btn light sm" type="button" onclick="closeModal()">Close</button></div>
+    </div>
+    <div class="body">
+      <div class="field"><label>Team name</label><input id="newTeamName" value="${esc(suggested)}" placeholder="Team name"></div>
+      <div class="field"><label>Team focus / business</label><input id="newTeamBiz" placeholder="Optional"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn light" type="button" onclick="closeModal()">Cancel</button>
+      <button class="btn orange" type="button" onclick="submitAddTeam()">Create team</button>
+    </div>
+  </div></div>`;
+  const inp=document.getElementById("newTeamName");
+  if(inp){
+    inp.focus();
+    inp.select();
+    inp.addEventListener("keydown", e=>{ if(e.key==="Enter") submitAddTeam(); });
+  }
+}
+async function submitAddTeam(){
+  const name=(document.getElementById("newTeamName").value||"").trim();
+  const businessName=(document.getElementById("newTeamBiz").value||"").trim();
+  if(!name) return toast("Team name is required");
+  try{
+    await api("POST","/api/teams",{ name, businessName });
+    closeModal();
+    await loadState(); selectedTeam=db.teams.length-1; render(); toast("Team added");
+  }catch(e){ toast(e.message); }
+}
+function deleteTeam(id){
+  const t=teamById(id); if(!t||!canAdminChapter()) return;
+  if(db.teams.length<=1) return toast("Cannot delete the last team");
+  openConfirm(`Delete ${t.name}?`, "This removes the team, members and scores.", async ()=>{
+    try{ await api("DELETE","/api/teams/"+id); await loadState(); selectedTeam=0; render(); toast("Team deleted"); }
+    catch(e){ toast(e.message); }
+  });
+}
+async function saveCaptain(teamId){
+  const name=document.getElementById("capName_"+teamId).value.trim();
+  const password=document.getElementById("capPass_"+teamId).value;
+  if(!name||!password) return toast("Captain name and password required");
+  try{
+    await api("POST","/api/users/captain",{ name, password, teamId });
+    await loadState(); render(); toast("Captain assigned to this team");
+  }catch(e){ toast(e.message); }
+}
+async function addMember(tid){
+  const t=teamById(tid); if(!t||!canManageTeam(t)) return;
+  try{
+    const m=await api("POST","/api/teams/"+tid+"/members",{ name:"New member" });
+    t.members=t.members||[]; t.members.push(m);
+    render(); openProfile(tid, m.id);
+  }catch(e){ toast(e.message); }
+}
+function deleteMember(tid,mid){
+  const {team,member}=findTM(tid,mid); if(!team||!member||!canManageTeam(team)) return;
+  openConfirm(`Remove ${member.name}?`, "Their points will be removed.", async ()=>{
+    try{
+      await api("DELETE","/api/members/"+mid);
+      team.members=team.members.filter(m=>m.id!==mid);
+      render(); toast("Member removed");
+    }catch(e){ toast(e.message); }
+  });
+}
+
+function openProfile(tid,mid){
+  const {team,member}=findTM(tid,mid); if(!member) return;
+  const edit=canEditMember(team,member);
+  profileDraft={ photo: member.photo||"" };
+  document.getElementById("modal").innerHTML=`<div class="back" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="head">Profile · ${esc(member.name)}
+      <div class="actions">
+        <button class="btn light sm" type="button" onclick="closeModal()">Close</button>
+        ${edit?`<button class="btn orange sm" type="button" onclick="saveProfile('${tid}','${mid}')">Save</button>`:""}
+      </div>
+    </div>
+    <div class="body">
+      <div id="pf_preview" style="text-align:center;margin-bottom:12px">${dp(member)}</div>
+      <div class="field"><label>Photo</label><input ${edit?"":"disabled"} type="file" accept="image/*" capture="user" onchange="uploadPhoto('${tid}','${mid}',this.files[0])"></div>
+      ${edit?`<div class="actions" style="margin-bottom:10px"><button class="btn sm danger" type="button" onclick="clearPhoto('${tid}','${mid}')">Remove photo</button></div>
+      <p style="color:var(--muted);font-size:12px;margin:0 0 12px">Edit the fields, then click Save profile. Closing without saving discards changes.</p>`:""}
+      <div class="team-grid">
+        <div class="field"><label>Name</label><input id="pf_name" ${edit?"":"disabled"} value="${esc(member.name)}"></div>
+        <div class="field"><label>Business name</label><input id="pf_business" ${edit?"":"disabled"} value="${esc(member.businessName||"")}"></div>
+        <div class="field"><label>Website</label><input id="pf_website" ${edit?"":"disabled"} placeholder="https://" value="${esc(member.website||"")}"></div>
+        <div class="field"><label>Social / WhatsApp</label><input id="pf_social" ${edit?"":"disabled"} value="${esc(member.social||"")}"></div>
+        <div class="field"><label>Location</label><input id="pf_location" ${edit?"":"disabled"} value="${esc(member.location||"")}"></div>
+        ${canManageTeam(team)?`<div class="field"><label>Member login password</label><input id="pf_pass" type="password" placeholder="Set or reset so they can sign in"></div>`:""}
+      </div>
+    </div>
+    ${edit?`<div class="modal-foot"><button class="btn orange" type="button" onclick="saveProfile('${tid}','${mid}')">Save profile</button></div>`:""}
+  </div></div>`;
+}
+async function saveProfile(tid,mid){
+  const {team,member}=findTM(tid,mid); if(!member||!canEditMember(team,member)) return;
+  const name=(document.getElementById("pf_name").value||"").trim();
+  if(!name) return toast("Name is required");
+  const payload={
+    name,
+    businessName:(document.getElementById("pf_business").value||"").trim(),
+    website:(document.getElementById("pf_website").value||"").trim(),
+    social:(document.getElementById("pf_social").value||"").trim(),
+    location:(document.getElementById("pf_location").value||"").trim(),
+    photo: profileDraft ? profileDraft.photo : (member.photo||"")
+  };
+  const passEl=document.getElementById("pf_pass");
+  if(passEl&&passEl.value.trim()) payload.password=passEl.value.trim();
+  try{
+    await api("PATCH","/api/members/"+mid, payload);
+    const wasSelf=session.role==="member"&&(session.memberId===mid||session.name===member.name);
+    delete payload.password;
+    Object.assign(member, payload);
+    if(wasSelf){
+      session.name=payload.name;
+      session.memberId=mid;
+      try{ sessionStorage.setItem("BOSS_SESSION", JSON.stringify(session)); }catch(e){}
+    }
+    closeModal();
+    render();
+    toast("Profile saved");
+  }catch(e){ toast(e.message); }
+}
+function clearPhoto(tid,mid){
+  if(profileDraft) profileDraft.photo="";
+  const name=(document.getElementById("pf_name")&&document.getElementById("pf_name").value)||((findTM(tid,mid).member||{}).name);
+  const preview=document.getElementById("pf_preview");
+  if(preview) preview.innerHTML=`<span class="dp">${esc(initials(name))}</span>`;
+}
+function uploadPhoto(tid,mid,file){
+  const {team,member}=findTM(tid,mid); if(!file||!canEditMember(team,member)) return;
+  const img=new Image(), r=new FileReader();
+  r.onload=()=>{ img.onload=()=>{
+    const c=document.createElement("canvas"), max=360, s=Math.min(1,max/Math.max(img.width,img.height));
+    c.width=img.width*s; c.height=img.height*s;
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    if(!profileDraft) profileDraft={photo:""};
+    profileDraft.photo=c.toDataURL("image/jpeg",0.72);
+    const preview=document.getElementById("pf_preview");
+    if(preview) preview.innerHTML=`<img class="dp" src="${profileDraft.photo}" alt="">`;
+  }; img.src=r.result; };
+  r.readAsDataURL(file);
+}
+function closeModal(){ profileDraft=null; document.getElementById("modal").innerHTML=""; }
+function openConfirm(title,msg,fn){
+  document.getElementById("modal").innerHTML=`<div class="back"><div class="modal"><div class="head">${esc(title)}</div><div class="body"><p>${esc(msg)}</p>
+    <div class="actions" style="margin-top:14px"><button class="btn light" onclick="closeModal()">Cancel</button><button class="btn danger" id="okDel">Delete</button></div></div></div></div>`;
+  document.getElementById("okDel").onclick=()=>{ closeModal(); fn(); };
+}
+
+function pageReports(){
+  const allowed=visibleTeams();
+  if(!reportPick.length) reportPick=allowed.map(t=>t.id);
+  reportPick=reportPick.filter(id=>allowed.some(t=>t.id===id));
+  const weeks=weekLabels();
+  return `<div class="page-title"><div><h2>Reports</h2><p>Preview here, save in BOSS, or download a file.</p></div></div>
+    <div class="card"><div class="head">Build a report</div><div class="body">
+      <div class="notice ok">${isCaptain()?"Your report is limited to your team.":"Tick the team(s), then view weekly or monthly."}</div>
+      <div class="pills" style="margin-bottom:12px">${allowed.map(t=>`<button class="pill ${reportPick.includes(t.id)?"on":""}" onclick="toggleReport('${t.id}')">${esc(t.name)}</button>`).join("")}</div>
+      <div class="actions">
+        <button class="btn light sm" onclick='reportPick=${JSON.stringify(allowed.map(t=>t.id))};render()'>All</button>
+        <button class="btn orange" onclick="showLiveReport('weekly')">View weekly</button>
+        <button class="btn navy" onclick="showLiveReport('monthly')">View monthly</button>
+      </div>
+      <p style="margin-top:8px;color:var(--muted);font-size:12px">Weekly uses the week selected on Scores (${esc(weeks[selectedWeek]||"")}).</p>
+    </div></div>
+    <div class="card"><div class="head">Saved reports</div><div class="body">
+      <div class="report-list">${(db.reports||[]).map(r=>`<div class="report-item">
+        <div><b>${esc(r.title)}</b><div style="font-size:12px;color:var(--muted)">${new Date(r.createdAt).toLocaleString()}</div></div>
+        <div class="actions"><button class="btn sm light" onclick="openSaved('${r.id}')">Open</button><button class="btn sm danger" onclick="deleteReport('${r.id}')">Delete</button></div>
+      </div>`).join("")||`<p style="color:var(--muted)">No saved reports yet.</p>`}</div>
+      <div class="actions" style="margin-top:12px">
+        <label class="btn light sm">Open downloaded file<input type="file" accept=".html,.json,text/html,application/json" class="hidden" onchange="importReportFile(this.files[0])"></label>
+      </div>
+    </div></div>
+    ${reportOpen?renderReportViewer(reportOpen):""}`;
+}
+function toggleReport(id){ if(reportPick.includes(id)) reportPick=reportPick.filter(x=>x!==id); else reportPick.push(id); render(); }
+function showLiveReport(type){
+  if(!reportPick.length) return toast("Select a team first");
+  reportOpen=buildReport(type, reportPick, true); render();
+}
+function buildReport(type, ids, live){
+  const teams=ids.map(teamById).filter(Boolean);
+  const title=`${db.chapterName} ${type==="weekly"?"weekly":"monthly"} · ${fmtMonth(db.month)}${type==="weekly"?" · "+(weekLabels()[selectedWeek]||""):""}`;
+  return {id:live?"live":"r"+Date.now(), createdAt:Date.now(), type, month:db.month, week:selectedWeek, teamIds:ids, title, html:reportHTML(type, teams), live:!!live};
+}
+function reportHTML(type, teams){
+  const dates=meetingDates();
+  const bits=teams.map(t=>{
+    if(type==="weekly"){
+      const w=selectedWeek;
+      const mem=(t.members||[]).slice().sort((a,b)=>a.name.localeCompare(b.name));
+      return `<h2>${esc(t.name)} — Week ${w+1} (${dates[w]?dates[w].toLocaleDateString("en-GB"):""})</h2>
+        <table><tr><th>Member</th>${A.map(a=>`<th>${esc(a.short)}</th>`).join("")}<th>Week</th><th>Month</th></tr>
+        ${mem.map(m=>`<tr><td class="name">${esc(m.name)}<div class="biz">${esc(m.businessName||"")}</div></td>
+          ${A.map((a,ai)=>`<td>${Number(rowOf(t,m,w)[ai]||0)}</td>`).join("")}
+          <td class="total">${weekPts(t,m,w).toLocaleString()}</td><td class="total">${monthPts(t,m).toLocaleString()}</td></tr>`).join("")}
+        <tr><td><b>Team</b></td>${A.map((a,ai)=>`<td>${(t.members||[]).reduce((s,m)=>s+Number(rowOf(t,m,w)[ai]||0),0)}</td>`).join("")}
+          <td class="total">${teamWeekPts(t,w).toLocaleString()}</td><td class="total">${teamMonthPts(t).toLocaleString()}</td></tr>
+        </table>`;
+    }
+    const rows=(t.members||[]).map(m=>({m, month:monthPts(t,m), weeks:dates.map((_,w)=>weekPts(t,m,w))})).sort((a,b)=>b.month-a.month);
+    const lead=rows[0]?.month||0;
+    return `<h2>${esc(t.name)} — ${esc(fmtMonth(db.month))}</h2>
+      <p>Team total: <b>${teamMonthPts(t).toLocaleString()}</b></p>
+      <table><tr><th>#</th><th>Member</th>${dates.map((_,i)=>`<th>W${i+1}</th>`).join("")}<th>Month</th><th>Vs leader</th></tr>
+      ${rows.map((x,i)=>`<tr><td>${i+1}</td><td class="name">${esc(x.m.name)}<div class="biz">${esc(x.m.businessName||"")}</div></td>
+        ${x.weeks.map(v=>`<td>${v.toLocaleString()}</td>`).join("")}
+        <td class="total">${x.month.toLocaleString()}</td>
+        <td>${x.month===lead?"LEADER":"-"+(lead-x.month).toLocaleString()}</td></tr>`).join("")}
+      </table>`;
+  }).join("<hr>");
+  return `<h1>${esc(db.chapterName)} · ${type==="weekly"?"Weekly report":"Monthly report"}</h1>
+    <p>${esc(fmtMonth(db.month))} · Meeting day: ${DAY[db.meetingDay]} · Generated ${new Date().toLocaleString()}</p>${bits}`;
+}
+function renderReportViewer(rec){
+  return `<div class="card"><div class="head">${esc(rec.title)} ${rec.live?"<span>Live preview</span>":""}</div><div class="body">
+    <div class="actions" style="margin-bottom:12px">
+      <button class="btn orange" onclick="saveCurrentReport()">Save in this app</button>
+      <button class="btn navy" onclick="downloadCurrentReport()">Download HTML</button>
+      <button class="btn light" onclick="printCurrentReport()">Print</button>
+    </div>
+    <div class="report-view">${rec.html}</div>
+  </div></div>`;
+}
+async function saveCurrentReport(){
+  if(!reportOpen) return;
+  try{
+    const saved=await api("POST","/api/reports",{ ...reportOpen, live:undefined, html:reportOpen.html });
+    db.reports.unshift(saved); reportOpen={...saved, live:false}; toast("Report saved"); render();
+  }catch(e){ toast(e.message); }
+}
+function downloadCurrentReport(){
+  if(!reportOpen) return;
+  const payload=JSON.stringify({kind:"BOSS_REPORT", ...reportOpen, html:reportOpen.html});
+  const doc=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(reportOpen.title)}</title>
+    <style>body{font-family:Arial,sans-serif;padding:18px;color:#122033}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #bbb;padding:5px;text-align:center}th{background:#102033;color:#fff}td.name{text-align:left}h1{margin-bottom:4px}hr{margin:22px 0;border:0;border-top:1px solid #ddd}.biz{color:#66758a;font-size:10px}.total{background:#e7f6ec;font-weight:700}</style></head>
+    <body>${reportOpen.html}<script type="application/json" id="boss-report">${payload.replace(/</g,"\\u003c")}<\\/script></body></html>`;
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([doc],{type:"text/html"}));
+  a.download=`${(db.chapterName||"BOSS").replace(/\s+/g,"_")}_${reportOpen.type}_${db.month}.html`;
+  a.click(); toast("Downloaded");
+}
+function printCurrentReport(){
+  if(!reportOpen) return;
+  const p=document.getElementById("printArea"); p.innerHTML=reportOpen.html; p.classList.remove("hidden"); window.print();
+  setTimeout(()=>{p.classList.add("hidden"); p.innerHTML="";},500);
+}
+function openSaved(id){ reportOpen=(db.reports||[]).find(r=>r.id===id)||null; if(reportOpen) reportOpen.live=false; render(); }
+async function deleteReport(id){
+  const rec=(db.reports||[]).find(r=>r.id===id);
+  openConfirm("Delete this report?", rec?rec.title:"This cannot be undone.", async ()=>{
+    try{ await api("DELETE","/api/reports/"+id); db.reports=db.reports.filter(r=>r.id!==id); if(reportOpen&&reportOpen.id===id) reportOpen=null; render(); toast("Report deleted"); }
+    catch(e){ toast(e.message); }
+  });
+}
+async function importReportFile(file){
+  if(!file) return;
+  const text=await file.text();
+  try{
+    let rec=null;
+    if(file.name.endsWith(".json")) rec=JSON.parse(text);
+    else { const m=text.match(/id="boss-report">([^<]+)</); if(m) rec=JSON.parse(m[1].replace(/\\u003c/g,"<")); }
+    if(!rec||!rec.html) throw 0;
+    rec.live=false; rec.title=rec.title||file.name;
+    const saved=await api("POST","/api/reports", rec);
+    db.reports.unshift(saved); reportOpen=saved; toast("Report opened"); render();
+  }catch(e){ toast("Could not read that file"); }
+}
+
+function pageSettings(){
+  if(isSuperAdmin() && !session.chapterId) return pagePlatform();
+  const admin=canAdminChapter();
+  return `<div class="page-title"><div><h2>Settings</h2><p>Chapter options for ${esc(db.chapterName)}. ${admin?"Super admin and the president can change these.":"Captains cannot change chapter-wide settings."}</p></div></div>
+    <div class="card"><div class="head">Chapter</div><div class="body">
+      <div class="team-grid">
+        <div class="field"><label>Chapter name</label><input id="ch_name" ${admin?"":"disabled"} value="${esc(db.chapterName)}"></div>
+        <div class="field"><label>City</label><input id="ch_city" ${admin?"":"disabled"} value="${esc(db.city)}"></div>
+        <div class="field"><label>Chairman (name only)</label><input id="ch_chair" ${admin?"":"disabled"} value="${esc(db.chairmanName)}"></div>
+        <div class="field"><label>Meeting weekday</label>
+          <select id="ch_day" ${admin?"":"disabled"}>
+            ${DAY.map((d,i)=>`<option value="${i}" ${i===db.meetingDay?"selected":""}>${d}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field"><label>Reporting month</label>${monthPickerHtml()}</div>
+        <div class="field"><label>My password</label><div class="pw"><input id="apw" type="password" placeholder="New password"><button class="eye" type="button" onclick="togglePw('apw',this)">👁</button></div></div>
+      </div>
+      <div class="actions" style="margin-top:10px">
+        ${admin?`<button class="btn orange sm" onclick="saveChapter()">Save chapter</button>`:""}
+        <button class="btn orange sm" onclick="saveMyPassword()">Update my password</button>
+      </div>
+    </div></div>
+    <div class="card"><div class="head">Point columns (fixed)</div><div class="body">
+      <div class="scroll"><table style="min-width:0"><tr><th>Activity</th><th>Points</th><th>How it is entered</th></tr>
+        ${A.map(a=>`<tr><td class="name">${esc(a.name)}</td><td>${a.points}</td><td>${a.kind==="check"?"Weekly present / absent":a.kind==="monthCheck"?"One tick per month":"Type a number"}</td></tr>`).join("")}
+      </table></div>
+    </div></div>`;
+}
+function pagePlatform(){
+  return `<div class="page-title"><div><h2>Chapters — Super Admin</h2><p>Create a chapter, assign its president, then open it to add teams, captains and members.</p></div></div>
+    <div class="card"><div class="head">New chapter</div><div class="body">
+      <div class="team-grid">
+        <div class="field"><label>Chapter name</label><input id="ncName" placeholder="BOSS Agro Hub"></div>
+        <div class="field"><label>City</label><input id="ncCity" placeholder="Udumalpet"></div>
+        <div class="field"><label>President name</label><input id="ncPres" placeholder="President"></div>
+        <div class="field"><label>President password</label><input id="ncPass" type="password" placeholder="Password for president login"></div>
+      </div>
+      <div class="actions" style="margin-top:10px"><button class="btn orange" onclick="createChapter()">Create chapter</button></div>
+    </div></div>
+    <div class="card"><div class="head">Existing chapters</div><div class="body">
+      ${(db.chapters||[]).map(c=>`<div class="member-row" style="grid-template-columns:1fr auto">
+        <div><b>${esc(c.name)}</b><div style="color:var(--muted);font-size:12px">${esc(c.city||"—")} · ${c.teams||0} teams · ${c.members||0} members</div></div>
+        <button class="btn orange sm" type="button" onclick="openChapter('${c.id}')">Open chapter</button>
+      </div>`).join("")||"<p>None yet. Create the first chapter above.</p>"}
+    </div></div>`;
+}
+async function createChapter(){
+  try{
+    const created=await api("POST","/api/chapters",{
+      name:document.getElementById("ncName").value,
+      city:document.getElementById("ncCity").value,
+      presidentName:document.getElementById("ncPres").value,
+      presidentPassword:document.getElementById("ncPass").value
+    });
+    toast("Chapter created");
+    await openChapter(created.id);
+  }catch(e){ toast(e.message); }
+}
+async function saveChapter(){
+  if(!canAdminChapter()||!db.chapter) return;
+  const name=(document.getElementById("ch_name").value||"").trim();
+  const city=(document.getElementById("ch_city").value||"").trim();
+  const chairmanName=(document.getElementById("ch_chair").value||"").trim();
+  const meetingDay=Number(document.getElementById("ch_day").value);
+  if(!name) return toast("Chapter name is required");
+  try{
+    await api("PATCH","/api/chapters/"+db.chapter.id,{ name, city, chairmanName, meetingDay });
+    db.chapterName=name; db.city=city; db.chairmanName=chairmanName; db.meetingDay=meetingDay;
+    db.chapter.name=name; db.chapter.city=city; db.chapter.chairmanName=chairmanName; db.chapter.meetingDay=meetingDay;
+    toast("Chapter saved"); render();
+  }catch(e){ toast(e.message); }
+}
+async function saveMyPassword(){
+  const password=document.getElementById("apw").value;
+  try{ await api("PATCH","/api/me/password",{ password }); toast("Password updated"); document.getElementById("apw").value=""; }
+  catch(e){ toast(e.message); }
+}
+
+loadChapters().then(()=>loginFields());
+restoreSession();
+
+</script>
+</body>
+</html>
