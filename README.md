@@ -1,6 +1,8 @@
 # BossReports
 
-Weekly reports app for BOSS chapters. Super Admin (Bhushan) creates chapters and assigns each chapter president. The president maintains teams and captains. Team captains add members and enter scores — members do not sign in.
+Weekly reports app for BOSS chapters. Super Admin creates chapters (name, city, state, meeting weekday) and assigns each chapter president by email. The president maintains teams and captains (also email + password). Team captains add members and enter scores — members do not sign in.
+
+Sign in: Super Admin uses name and password. President and team captain use chapter, email and password.
 
 ## Run locally
 
@@ -27,7 +29,8 @@ See the step-by-step in the repo description after push, or follow **Deploy on R
 |---|---|---|
 | `MONGODB_URI` | Yes | Atlas connection string. In Atlas → Network Access, allow `0.0.0.0/0` so Render can connect. |
 | `JWT_SECRET` | Yes | Long random string. Render can generate this. |
-| `PLATFORM_NAME` | Yes | `Bhushan` |
+| `PLATFORM_NAME` | Yes | Super Admin login name, e.g. `Bhushan` |
+| `PLATFORM_EMAIL` | Optional | Stored on the Super Admin account; not used to sign in. |
 | `PLATFORM_PASSWORD` | Yes | Super Admin password. Only used when the first super-admin user is created. |
 | `NODE_ENV` | Optional | `production` |
 | `PORT` | No | Render sets this automatically. |

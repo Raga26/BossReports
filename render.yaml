@@ -15,5 +15,7 @@ services:
         generateValue: true
       - key: PLATFORM_NAME
         value: Bhushan
+      - key: PLATFORM_EMAIL
+        sync: false
       - key: PLATFORM_PASSWORD
         sync: false

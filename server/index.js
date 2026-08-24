@@ -10,20 +10,44 @@ const PORT = Number(process.env.PORT || 3000);
 const JWT_SECRET = process.env.JWT_SECRET || "boss-tn-dev-secret";
 const EMPTY = () => Array.from({ length: 11 }, () => 0);
 const emptyWeeks = () => Array.from({ length: 5 }, EMPTY);
+const POINT_KEYS = ["attendance","oneToOne","referral","payment","business","visitor","power","induction","late","better","discipline"];
+function defaultPoints() {
+  return {
+    attendance: 100, oneToOne: 100, referral: 100, payment: 200, business: 200,
+    visitor: 200, power: 500, induction: 500, late: -100, better: -200, discipline: -200
+  };
+}
+function mergePoints(stored) {
+  const out = defaultPoints();
+  if (stored && typeof stored === "object") {
+    POINT_KEYS.forEach(k => {
+      const n = Number(stored[k]);
+      if (Number.isFinite(n)) out[k] = n;
+    });
+  }
+  return out;
+}
+function normEmail(v) {
+  const s = String(v || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return "";
+  return s;
+}
 
 const { Schema } = mongoose;
 
 const Chapter = mongoose.model("Chapter", new Schema({
   name: { type: String, required: true },
   city: { type: String, default: "" },
+  state: { type: String, default: "" },
   meetingDay: { type: Number, default: 2 },
-  chairmanName: { type: String, default: "" }
+  activityPoints: { type: Schema.Types.Mixed, default: defaultPoints }
 }, { timestamps: true }));
 
 const User = mongoose.model("User", new Schema({
   chapterId: { type: Schema.Types.ObjectId, ref: "Chapter", default: null },
   role: { type: String, enum: ["platform", "president", "captain", "member"], required: true },
-  name: { type: String, required: true },
+  name: { type: String, default: "" },
+  email: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
   teamId: { type: Schema.Types.ObjectId, ref: "Team", default: null }
 }, { timestamps: true }));
@@ -69,7 +93,8 @@ function sign(user, extra = {}) {
   return jwt.sign({
     userId: String(user._id),
     role: user.role,
-    name: user.name,
+    name: user.name || user.email || "",
+    email: user.email || "",
     chapterId: user.chapterId ? String(user.chapterId) : null,
     teamId: user.teamId ? String(user.teamId) : null,
     memberId: extra.memberId || null
@@ -136,30 +161,58 @@ function id(x) { return String(x); }
 
 async function seed() {
   const superName = process.env.PLATFORM_NAME || "Bhushan";
+  const superEmail = String(process.env.PLATFORM_EMAIL || "bhushan@bossreports.local").trim().toLowerCase();
+
+  const missingEmail = await User.find({ $or: [{ email: { $exists: false } }, { email: null }, { email: "" }] });
+  for (const u of missingEmail) {
+    u.email = u.role === "platform" ? superEmail : `${u.role}.${u._id}@pending.local`;
+    if (!u.name) u.name = u.email;
+    await u.save();
+  }
+
   let platform = await User.findOne({ role: "platform" });
   if (!platform) {
     platform = await User.create({
       role: "platform",
       name: superName,
+      email: superEmail,
       passwordHash: await bcrypt.hash(process.env.PLATFORM_PASSWORD || "bhushan123", 10)
     });
     console.log("Seeded super admin:", platform.name);
-  } else if (platform.name !== superName) {
-    const prev = platform.name;
-    platform.name = superName;
+  } else {
+    if (platform.name !== superName) platform.name = superName;
+    if (process.env.PLATFORM_EMAIL) platform.email = superEmail;
+    else if (!platform.email) platform.email = superEmail;
     await platform.save();
-    console.log("Renamed super admin from", prev, "to", superName, "(password unchanged)");
   }
+  console.log("Super admin login name:", platform.name);
+
+  const chapters = await Chapter.find({});
+  for (const c of chapters) {
+    let changed = false;
+    if (c.name === "BOSS Agro Hub" && !c.state) { c.state = "Tamil Nadu"; changed = true; }
+    const merged = mergePoints(c.activityPoints);
+    if (JSON.stringify(c.activityPoints || {}) !== JSON.stringify(merged)) {
+      c.activityPoints = merged;
+      changed = true;
+    }
+    if (changed) await c.save();
+  }
+
   let chapter = await Chapter.findOne({ name: "BOSS Agro Hub" });
   if (!chapter) {
-    chapter = await Chapter.create({ name: "BOSS Agro Hub", city: "Udumalpet", meetingDay: 2, chairmanName: "" });
+    chapter = await Chapter.create({
+      name: "BOSS Agro Hub", city: "Udumalpet", state: "Tamil Nadu",
+      meetingDay: 2, activityPoints: defaultPoints()
+    });
     await User.create({
       chapterId: chapter._id,
       role: "president",
-      name: "President",
+      name: "",
+      email: "president.agrohub@pending.local",
       passwordHash: await bcrypt.hash("admin123", 10)
     });
-    console.log("Seeded chapter BOSS Agro Hub / Udumalpet (president / admin123)");
+    console.log("Seeded chapter BOSS Agro Hub / Udumalpet / Tamil Nadu");
   }
 }
 
@@ -172,47 +225,47 @@ app.get("/api/health", (_req, res) => res.json({ ok: true, db: "boss_tn" }));
 
 app.get("/api/auth/chapters", async (_req, res) => {
   const chapters = await Chapter.find({}).sort({ city: 1, name: 1 }).lean();
-  res.json(chapters.map(c => ({ id: id(c._id), name: c.name, city: c.city || "" })));
+  res.json(chapters.map(c => ({ id: id(c._id), name: c.name, city: c.city || "", state: c.state || "" })));
 });
 
 app.get("/api/auth/people", async (req, res) => {
-  const { chapterId, role } = req.query;
-  if (!role) return res.status(400).json({ error: "role required" });
-  if (role === "member") return res.json([]);
-  if (role === "platform") {
-    const users = await User.find({ role: "platform" }).select("name").lean();
-    return res.json(users.map(u => ({ name: u.name })));
-  }
-  if (!chapterId) return res.status(400).json({ error: "chapter required" });
-  const users = await User.find({ chapterId, role }).select("name teamId").sort({ name: 1 }).lean();
-  res.json(users.map(u => ({ name: u.name, teamId: u.teamId ? id(u.teamId) : null })));
+  const { role } = req.query;
+  if (role !== "platform") return res.status(400).json({ error: "Only super admin names are listed" });
+  const users = await User.find({ role: "platform" }).select("name").lean();
+  res.json(users.map(u => ({ name: u.name })));
 });
 
 app.post("/api/auth/login", async (req, res) => {
   const { chapterId, role, name, password } = req.body || {};
-  if (!role || !name || !password) return res.status(400).json({ error: "Role, name and password required" });
+  const email = normEmail(req.body && req.body.email);
+  if (!role || !password) return res.status(400).json({ error: "Role and password required" });
   if (role === "member") return res.status(403).json({ error: "Members do not sign in. Ask your team captain to enter details and scores." });
-  const q = role === "platform" ? { role: "platform", name } : { role, name, chapterId };
-  const user = await User.findOne(q);
-  if (!user) return res.status(401).json({ error: "No account with that name for this role" });
+
+  let user = null;
+  if (role === "platform") {
+    if (!name) return res.status(400).json({ error: "Name and password required" });
+    user = await User.findOne({ role: "platform", name });
+    if (!user) return res.status(401).json({ error: "No account with that name for this role" });
+  } else {
+    if (!email || !chapterId) return res.status(400).json({ error: "Chapter, email and password required" });
+    user = await User.findOne({ role, email, chapterId });
+    if (!user) return res.status(401).json({ error: "No account with that email for this chapter and role" });
+  }
+
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return res.status(401).json({ error: "Wrong password" });
-  if (role === "captain" && !user.teamId) return res.status(401).json({ error: "This captain is not assigned to a team yet" });
-  let memberId = null;
-  if (user.role === "member" && user.teamId) {
-    const mem = await Member.findOne({ teamId: user.teamId, name: user.name }).lean();
-    if (mem) memberId = id(mem._id);
-  }
-  const token = sign(user, { memberId });
+  if (user.role === "captain" && !user.teamId) return res.status(401).json({ error: "This captain is not assigned to a team yet" });
+  const token = sign(user);
   res.json({
     token,
     user: {
       id: id(user._id),
-      name: user.name,
+      name: user.name || user.email,
+      email: user.email || "",
       role: user.role,
       chapterId: user.chapterId ? id(user.chapterId) : null,
       teamId: user.teamId ? id(user.teamId) : null,
-      memberId
+      memberId: null
     }
   });
 });
@@ -229,13 +282,13 @@ app.get("/api/state", auth, async (req, res) => {
     const memberCounts = await Member.aggregate([{ $group: { _id: "$chapterId", n: { $sum: 1 } } }]);
     const tMap = Object.fromEntries(teamCounts.map(x => [id(x._id), x.n]));
     const mMap = Object.fromEntries(memberCounts.map(x => [id(x._id), x.n]));
-    const presidents = await User.find({ role: "president" }).select("name chapterId").lean();
-    const pMap = Object.fromEntries(presidents.map(p => [id(p.chapterId), p.name]));
+    const presidents = await User.find({ role: "president" }).select("email name chapterId").lean();
+    const pMap = Object.fromEntries(presidents.map(p => [id(p.chapterId), p.email || p.name || ""]));
     return res.json({
       role: "platform",
       chapters: chapters.map(c => ({
-        id: id(c._id), name: c.name, city: c.city || "", meetingDay: c.meetingDay,
-        chairmanName: c.chairmanName || "", presidentName: pMap[id(c._id)] || "",
+        id: id(c._id), name: c.name, city: c.city || "", state: c.state || "", meetingDay: c.meetingDay,
+        presidentEmail: pMap[id(c._id)] || "",
         teams: tMap[id(c._id)] || 0, members: mMap[id(c._id)] || 0
       })),
       chapter: null, teams: [], scores: {}, reports: [], captains: []
@@ -285,8 +338,9 @@ app.get("/api/state", auth, async (req, res) => {
     userId: u.userId,
     teamId: u.teamId,
     chapter: {
-      id: id(chapter._id), name: chapter.name, city: chapter.city || "", meetingDay: chapter.meetingDay,
-      chairmanName: chapter.chairmanName || "", presidentName: presidentUser ? presidentUser.name : ""
+      id: id(chapter._id), name: chapter.name, city: chapter.city || "", state: chapter.state || "",
+      meetingDay: chapter.meetingDay, activityPoints: mergePoints(chapter.activityPoints),
+      presidentEmail: presidentUser ? (presidentUser.email || "") : ""
     },
     teams: teams.map(t => ({
       id: id(t._id),
@@ -296,7 +350,7 @@ app.get("/api/state", auth, async (req, res) => {
       members: membersByTeam[id(t._id)] || []
     })),
     scores: scoreMap,
-    captains: captainUsers.map(c => ({ id: id(c._id), name: c.name, teamId: c.teamId ? id(c.teamId) : null })),
+    captains: captainUsers.map(c => ({ id: id(c._id), email: c.email || "", name: c.name || c.email || "", teamId: c.teamId ? id(c.teamId) : null })),
     reports: reports.map(r => ({
       id: id(r._id), title: r.title, type: r.type, month: r.month, week: r.week,
       teamIds: r.teamIds, html: r.html, createdAt: r.createdAt
@@ -306,21 +360,16 @@ app.get("/api/state", auth, async (req, res) => {
 
 app.post("/api/chapters", auth, async (req, res) => {
   if (!isPlatform(req.user)) return res.status(403).json({ error: "Only the super admin can create chapters" });
-  const { name, city, meetingDay, chairmanName, presidentName, presidentPassword } = req.body || {};
-  if (!name || !presidentName || !presidentPassword) return res.status(400).json({ error: "Chapter name, president name and password required" });
+  const { name, city, state, meetingDay } = req.body || {};
+  if (!name) return res.status(400).json({ error: "Chapter name required" });
   const chapter = await Chapter.create({
     name: String(name).trim(),
     city: String(city || "").trim(),
+    state: String(state || "").trim(),
     meetingDay: Number(meetingDay ?? 2),
-    chairmanName: String(chairmanName || "").trim()
+    activityPoints: defaultPoints()
   });
-  await User.create({
-    chapterId: chapter._id,
-    role: "president",
-    name: String(presidentName).trim(),
-    passwordHash: await bcrypt.hash(String(presidentPassword), 10)
-  });
-  res.json({ id: id(chapter._id), name: chapter.name, city: chapter.city });
+  res.json({ id: id(chapter._id), name: chapter.name, city: chapter.city, state: chapter.state });
 });
 
 app.patch("/api/chapters/:id", auth, async (req, res) => {
@@ -328,13 +377,14 @@ app.patch("/api/chapters/:id", auth, async (req, res) => {
   if (!chapter) return res.status(404).json({ error: "Not found" });
   const u = req.user;
   if (!isPlatform(u) && !(isPresident(u) && id(chapter._id) === u.chapterId)) return res.status(403).json({ error: "Not allowed" });
-  const { name, city, meetingDay, chairmanName } = req.body || {};
+  const { name, city, state, meetingDay, activityPoints } = req.body || {};
   if (name != null) chapter.name = String(name).trim();
   if (city != null) chapter.city = String(city).trim();
+  if (state != null) chapter.state = String(state).trim();
   if (meetingDay != null) chapter.meetingDay = Number(meetingDay);
-  if (chairmanName != null) chapter.chairmanName = String(chairmanName).trim();
+  if (activityPoints != null) chapter.activityPoints = mergePoints(activityPoints);
   await chapter.save();
-  res.json({ ok: true });
+  res.json({ ok: true, activityPoints: mergePoints(chapter.activityPoints) });
 });
 
 app.patch("/api/me/password", auth, async (req, res) => {
@@ -388,13 +438,17 @@ app.delete("/api/teams/:id", auth, async (req, res) => {
 app.post("/api/users/president", auth, async (req, res) => {
   if (!isPlatform(req.user)) return res.status(403).json({ error: "Only the super admin can create or replace a chapter president" });
   const chapterId = actingChapterId(req) || req.body.chapterId;
-  const { name, password } = req.body || {};
+  const email = normEmail(req.body && req.body.email);
+  const password = req.body && req.body.password;
   if (!chapterId) return res.status(400).json({ error: "Open a chapter first" });
-  const presidentName = String(name || "").trim();
-  if (!presidentName) return res.status(400).json({ error: "President name required" });
+  if (!email) return res.status(400).json({ error: "President email required" });
   const chapter = await Chapter.findById(chapterId);
   if (!chapter) return res.status(404).json({ error: "Chapter not found" });
   let user = await User.findOne({ chapterId: chapter._id, role: "president" });
+  const taken = await User.findOne({ email });
+  if (taken && (!user || id(taken._id) !== id(user._id))) {
+    return res.status(400).json({ error: "That email is already used by another account" });
+  }
   if (!user && (!password || String(password).length < 4)) {
     return res.status(400).json({ error: "Password must be at least 4 characters to create a president" });
   }
@@ -402,37 +456,53 @@ app.post("/api/users/president", auth, async (req, res) => {
     return res.status(400).json({ error: "Password must be at least 4 characters" });
   }
   if (user) {
-    user.name = presidentName;
+    user.email = email;
     if (password) user.passwordHash = await bcrypt.hash(String(password), 10);
     await user.save();
   } else {
     user = await User.create({
       chapterId: chapter._id,
       role: "president",
-      name: presidentName,
+      email,
+      name: "",
       passwordHash: await bcrypt.hash(String(password), 10)
     });
   }
-  res.json({ id: id(user._id), name: user.name });
+  res.json({ id: id(user._id), email: user.email });
 });
 
 app.post("/api/users/captain", auth, async (req, res) => {
   const chapterId = actingChapterId(req);
   if (!isChapterAdmin(req.user, chapterId)) return res.status(403).json({ error: "Only the super admin or president can create team captains" });
-  const { name, password, teamId } = req.body || {};
-  if (!name || !password || !teamId) return res.status(400).json({ error: "Name, password and team required" });
+  const { password, teamId } = req.body || {};
+  const email = normEmail(req.body && req.body.email);
+  if (!email || !teamId) return res.status(400).json({ error: "Captain email and team required" });
   const team = await Team.findOne({ _id: teamId, chapterId });
   if (!team) return res.status(404).json({ error: "Team not found" });
-  let user = await User.findOne({ chapterId: team.chapterId, role: "captain", name: String(name).trim() });
+  let user = await User.findOne({ email });
+  if (user && user.role !== "captain") {
+    return res.status(400).json({ error: "That email is already used by another role" });
+  }
+  if (user && user.chapterId && id(user.chapterId) !== id(chapterId)) {
+    return res.status(400).json({ error: "That email belongs to another chapter" });
+  }
+  if (!user && (!password || String(password).length < 4)) {
+    return res.status(400).json({ error: "Password must be at least 4 characters to create a captain" });
+  }
+  if (password && String(password).length < 4) {
+    return res.status(400).json({ error: "Password must be at least 4 characters" });
+  }
   if (user) {
-    user.passwordHash = await bcrypt.hash(String(password), 10);
     user.teamId = team._id;
+    user.chapterId = team.chapterId;
+    if (password) user.passwordHash = await bcrypt.hash(String(password), 10);
     await user.save();
   } else {
     user = await User.create({
       chapterId: team.chapterId,
       role: "captain",
-      name: String(name).trim(),
+      email,
+      name: "",
       passwordHash: await bcrypt.hash(String(password), 10),
       teamId: team._id
     });
@@ -443,7 +513,7 @@ app.post("/api/users/captain", auth, async (req, res) => {
   }
   team.captainUserId = user._id;
   await team.save();
-  res.json({ id: id(user._id), name: user.name, teamId: id(team._id) });
+  res.json({ id: id(user._id), email: user.email, teamId: id(team._id) });
 });
 
 app.post("/api/teams/:id/members", auth, async (req, res) => {

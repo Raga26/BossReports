@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -154,18 +154,17 @@ td.name{text-align:left;font-weight:750}td.name .biz{font-size:11px;color:var(--
   <div class="login-card">
     <img class="logo" src="logo.png" alt="BhuFix" onerror="this.style.display='none'">
     <h1 id="loginTitle">BossReports</h1>
-    <p class="sub">Super Admin creates each chapter and its president. The president adds teams and captains. Team captains add members and enter scores — members do not sign in.</p>
-    <div class="field" id="lcw"><label>Chapter</label><select id="lc" onchange="loginPeople()"></select></div>
-    <div class="row2">
-      <div class="field"><label>Role</label>
-        <select id="lr" onchange="loginFields()">
-          <option value="president">President</option>
-          <option value="captain">Team Captain</option>
-          <option value="platform">Super Admin</option>
-        </select>
-      </div>
-      <div class="field" id="lpw"><label>Person</label><select id="lp"></select></div>
+    <p class="sub">Super Admin signs in with name and password. Presidents and team captains sign in with their chapter, email and password. Members do not sign in.</p>
+    <div class="field" id="lcw"><label>Chapter</label><select id="lc"></select></div>
+    <div class="field"><label>Role</label>
+      <select id="lr" onchange="loginFields()">
+        <option value="president">President</option>
+        <option value="captain">Team Captain</option>
+        <option value="platform">Super Admin</option>
+      </select>
     </div>
+    <div class="field hidden" id="lnw"><label>Person</label><select id="lp"></select></div>
+    <div class="field" id="lew"><label>Email</label><input id="lemail" type="email" autocomplete="username" placeholder="you@example.com"></div>
     <div class="field"><label>Password</label>
       <div class="pw"><input id="lpass" type="password" autocomplete="current-password"><button class="eye" type="button" onclick="togglePw('lpass',this)">👁</button></div>
     </div>
@@ -246,7 +245,7 @@ let session=null, view="home", selectedTeam=0, selectedWeek=0, reportPick=[], re
 let dirtyScores=new Set();
 let profileDraft=null;
 let chaptersList=[];
-let db={chapter:null,chapterName:"BOSS",city:"",meetingDay:2,chairmanName:"",presidentName:"",month:thisMonth(),teams:[],scores:{},reports:[],captains:[],lastSaved:Date.now()};
+let db={chapter:null,chapterName:"BOSS",city:"",state:"",meetingDay:2,presidentEmail:"",activityPoints:{},month:thisMonth(),teams:[],scores:{},reports:[],captains:[],lastSaved:Date.now()};
 
 async function api(method, path, body){
   const headers={ "Content-Type":"application/json" };
@@ -292,45 +291,75 @@ function teamWeekPts(team, week){ return (team.members||[]).reduce((s,m)=>s+week
 function teamMonthPts(team){ return meetingDates().reduce((s,_,w)=>s+teamWeekPts(team,w),0); }
 function dp(member, cls="dp"){ return member.photo?`<img class="${cls}" src="${member.photo}" alt="">`:`<span class="${cls}">${esc(initials(member.name))}</span>`; }
 function findTM(tid,mid){ const team=teamById(tid); return {team, member:team&&(team.members||[]).find(m=>m.id===mid)}; }
-function captainName(team){ const c=(db.captains||[]).find(x=>x.teamId===team.id); return c?c.name:""; }
+function placeLine(city, state){
+  return [city, state].filter(Boolean).join(" · ");
+}
+function userLabel(){
+  if(!session) return "";
+  if(session.role==="platform") return session.name || "";
+  return session.email || session.name || "";
+}
+function userInitials(){
+  const e=userLabel();
+  const local=e.includes("@")?e.split("@")[0]:e;
+  return initials(local.replace(/[._+\-]+/g," "));
+}
+function applyPoints(map){
+  const pts=map||{};
+  A.forEach(a=>{
+    const n=Number(pts[a.key]);
+    if(Number.isFinite(n)) a.points=n;
+  });
+}
 
 function togglePw(id, btn){ const x=document.getElementById(id); if(!x) return; x.type=x.type==="password"?"text":"password"; if(btn) btn.textContent=x.type==="password"?"👁":"🙈"; }
 function pwHtml(id, placeholder){
   return `<div class="pw"><input id="${id}" type="password" autocomplete="new-password" placeholder="${esc(placeholder||"")}"><button class="eye" type="button" onclick="togglePw('${id}',this)" aria-label="Show or hide password">👁</button></div>`;
 }
 
+function captainEmail(team){ const c=(db.captains||[]).find(x=>x.teamId===team.id); return c?(c.email||c.name||""):""; }
+
 async function loadChapters(){
   try{ chaptersList=await api("GET","/api/auth/chapters"); }
   catch(e){ chaptersList=[]; console.warn(e); }
   const sel=document.getElementById("lc");
-  if(sel) sel.innerHTML=chaptersList.length?chaptersList.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.city?" — "+esc(c.city):""}</option>`).join(""):`<option value="">No chapters yet</option>`;
+  if(sel) sel.innerHTML=chaptersList.length?chaptersList.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${placeLine(c.city,c.state)?" — "+esc(placeLine(c.city,c.state)):""}</option>`).join(""):`<option value="">No chapters yet</option>`;
 }
-
 async function loginFields(){
   const r=document.getElementById("lr").value;
-  document.getElementById("lcw").classList.toggle("hidden", r==="platform");
-  document.getElementById("lpw").classList.toggle("hidden", false);
-  await loginPeople();
+  const isAdmin=r==="platform";
+  document.getElementById("lcw").classList.toggle("hidden", isAdmin);
+  document.getElementById("lnw").classList.toggle("hidden", !isAdmin);
+  document.getElementById("lew").classList.toggle("hidden", isAdmin);
+  if(isAdmin) await loginPeople();
 }
 async function loginPeople(){
-  const r=document.getElementById("lr").value;
-  const chapterId=document.getElementById("lc").value;
   const lp=document.getElementById("lp");
   try{
-    const q=r==="platform"?`/api/auth/people?role=platform`:`/api/auth/people?role=${encodeURIComponent(r)}&chapterId=${encodeURIComponent(chapterId)}`;
-    const people=await api("GET", q);
+    const people=await api("GET","/api/auth/people?role=platform");
     lp.innerHTML=people.length?people.map(p=>`<option>${esc(p.name)}</option>`).join(""):`<option value="">None assigned</option>`;
   }catch(e){ lp.innerHTML=`<option value="">Could not load people</option>`; }
 }
 
 async function doLogin(){
-  const r=document.getElementById("lr").value, pw=document.getElementById("lpass").value, msg=document.getElementById("lmsg");
-  const name=document.getElementById("lp").value;
+  const r=document.getElementById("lr").value;
+  const pw=document.getElementById("lpass").value;
+  const msg=document.getElementById("lmsg");
   msg.classList.add("hidden");
-  if(!name){ msg.textContent="Choose a person."; msg.classList.remove("hidden"); return; }
   try{
-    const body={ role:r, name, password:pw };
-    if(r!=="platform") body.chapterId=document.getElementById("lc").value;
+    const body={ role:r, password:pw };
+    if(r==="platform"){
+      const name=document.getElementById("lp").value;
+      if(!name){ msg.textContent="Choose a person."; msg.classList.remove("hidden"); return; }
+      body.name=name;
+    }else{
+      const email=(document.getElementById("lemail").value||"").trim();
+      const chapterId=document.getElementById("lc").value;
+      if(!chapterId){ msg.textContent="Choose a chapter."; msg.classList.remove("hidden"); return; }
+      if(!email){ msg.textContent="Enter your email."; msg.classList.remove("hidden"); return; }
+      body.email=email;
+      body.chapterId=chapterId;
+    }
     const out=await api("POST","/api/auth/login", body);
     token=out.token; session=out.user;
     sessionStorage.setItem("BOSS_TOKEN", token);
@@ -364,15 +393,17 @@ async function loadState(){
     db.chapters=data.chapters||[];
     db.chapter=null;
     db.teams=[]; db.scores={}; db.reports=[]; db.captains=[];
-    db.chapterName="All chapters"; db.city="Tamil Nadu"; db.presidentName="";
+    db.chapterName="All chapters"; db.city=""; db.state=""; db.presidentEmail="";
     return;
   }
   db.chapter=data.chapter;
   db.chapterName=data.chapter.name;
   db.city=data.chapter.city||"";
+  db.state=data.chapter.state||"";
   db.meetingDay=Number(data.chapter.meetingDay??2);
-  db.chairmanName=data.chapter.chairmanName||"";
-  db.presidentName=data.chapter.presidentName||"";
+  db.presidentEmail=data.chapter.presidentEmail||"";
+  db.activityPoints=data.chapter.activityPoints||{};
+  applyPoints(db.activityPoints);
   db.teams=data.teams||[];
   db.scores=data.scores||{};
   db.reports=data.reports||[];
@@ -434,9 +465,8 @@ function navItems(){
 function render(){
   db.month=normMonth(db.month);
   document.getElementById("chapterTop").textContent=db.chapterName||"BOSS";
-  document.getElementById("topName").textContent=session.name+(isSuperAdmin()?" · Super Admin":"");
-  const mem=session.memberId?db.teams.flatMap(t=>t.members||[]).find(m=>m.id===session.memberId):null;
-  document.getElementById("topAvatar").innerHTML=mem?dp(mem,"avatar"):`<span class="avatar">${esc(initials(session.name))}</span>`;
+  document.getElementById("topName").textContent=userLabel()+(session.role?" · "+roleLabel(session.role):"");
+  document.getElementById("topAvatar").innerHTML=`<span class="avatar">${esc(userInitials())}</span>`;
   const items=navItems();
   document.getElementById("side").innerHTML=items.map(x=>`<div class="nav ${view===x[2]?"active":""}" onclick="nav('${x[2]}')">${x[0]} ${x[1]}</div>`).join("")+`<div class="sidefoot"><img src="logo.png" alt=""><div style="margin-top:8px">Powered by BhuFix</div></div>`;
   const bottom=document.getElementById("bottom");
@@ -492,7 +522,7 @@ function monthPickerHtml(){
 function monthBar(){
   return `<div class="filters" style="margin-bottom:10px">
     <div><label>Reporting month</label>${monthPickerHtml()}</div>
-    <div><label>Meeting weekday</label><div class="notice ok" style="margin:0;min-height:44px;display:flex;align-items:center">${DAY[db.meetingDay]}${db.city?" · "+esc(db.city):""}</div></div>
+    <div><label>Meeting weekday</label><div class="notice ok" style="margin:0;min-height:44px;display:flex;align-items:center">${DAY[db.meetingDay]}${placeLine(db.city,db.state)?" · "+esc(placeLine(db.city,db.state)):""}</div></div>
   </div>`;
 }
 async function onMonthPick(){
@@ -532,11 +562,11 @@ function rankTable(){
 
 function pageHome(){
   if(isSuperAdmin() && !session.chapterId) return pageSettings();
-  return `<div class="page-title"><div><h2>${esc(fmtMonth(db.month))}</h2><p>${esc(db.chapterName)}${db.city?" · "+esc(db.city):""} · ${weekLabels().length} ${DAY[db.meetingDay]} meetings</p></div>
+  return `<div class="page-title"><div><h2>${esc(fmtMonth(db.month))}</h2><p>${esc(db.chapterName)}${placeLine(db.city,db.state)?" · "+esc(placeLine(db.city,db.state)):""} · ${weekLabels().length} ${DAY[db.meetingDay]} meetings</p></div>
     <div class="actions">${canScore()?`<button class="btn orange sm" onclick="manualSave()">Save scores</button>`:""}<button class="btn navy sm" onclick="nav('reports')">Open reports</button></div></div>
     ${statsHtml()+monthBar()}
     <div class="card"><div class="head">How points work</div><div class="body">
-      <div class="notice ok"><b>Attendance:</b> present = 100 that week. <b>On-time payment:</b> one tick per month = 200. Type any count in the number box — you do not have to tap + many times.</div>
+      <div class="notice ok"><b>Attendance:</b> present = ${A[0].points} that week. <b>On-time payment:</b> one tick per month = ${A[3].points}. Super admin and president can change point values in Settings.</div>
       ${db.teams.length?selectors():""}
     </div></div>
     ${db.teams.length?scoreBlock(tObj(), selectedWeek):""}
@@ -674,7 +704,7 @@ function pageTeams(){
 }
 function teamCard(t){
   const edit=canManageTeam(t);
-  const cap=captainName(t);
+  const cap=captainEmail(t);
   return `<div class="card"><div class="head">${esc(t.name)} <span>${(t.members||[]).length} members</span></div><div class="body">
     <div class="team-grid">
       <div class="field"><label>Team name</label><input id="tn_${t.id}" ${edit?"":"disabled"} value="${esc(t.name)}"></div>
@@ -683,8 +713,8 @@ function teamCard(t){
     ${edit?`<div class="actions" style="margin-top:10px"><button class="btn orange sm" onclick="saveTeam('${t.id}')">Save team</button></div>`:""}
     <div class="notice ok" style="margin-top:12px"><b>Team captain:</b> ${esc(cap||"Not assigned yet")}</div>
     ${canAdminChapter()?`<div class="team-grid" style="margin-top:10px">
-      <div class="field"><label>Captain name</label><input id="capName_${t.id}" value="${esc(cap)}" placeholder="Captain full name"></div>
-      <div class="field"><label>Captain password</label>${pwHtml("capPass_"+t.id, "Set or reset password")}</div>
+      <div class="field"><label>Captain email</label><input id="capEmail_${t.id}" type="email" value="${esc(cap)}" placeholder="captain@example.com"></div>
+      <div class="field"><label>Captain password</label>${pwHtml("capPass_"+t.id, cap?"Leave blank to keep current password":"Password for captain login")}</div>
     </div>
     <div class="actions" style="margin-top:8px"><button class="btn orange sm" onclick="saveCaptain('${t.id}')">Save / assign captain</button></div>`:""}
     <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px">
@@ -754,11 +784,15 @@ function deleteTeam(id){
   });
 }
 async function saveCaptain(teamId){
-  const name=document.getElementById("capName_"+teamId).value.trim();
+  const email=(document.getElementById("capEmail_"+teamId).value||"").trim();
   const password=document.getElementById("capPass_"+teamId).value;
-  if(!name||!password) return toast("Captain name and password required");
+  if(!email) return toast("Captain email required");
+  const current=captainEmail(teamById(teamId));
+  if(!password && email.toLowerCase()!==String(current||"").toLowerCase()) return toast("Password is required to create a captain");
   try{
-    await api("POST","/api/users/captain",{ name, password, teamId });
+    const body={ email, teamId };
+    if(password) body.password=password;
+    await api("POST","/api/users/captain", body);
     await loadState(); render(); toast("Captain assigned to this team");
   }catch(e){ toast(e.message); }
 }
@@ -978,57 +1012,60 @@ async function importReportFile(file){
 function pageSettings(){
   if(isSuperAdmin() && !session.chapterId) return pagePlatform();
   const admin=canAdminChapter();
-  const hasPresident=!!db.presidentName;
+  const hasPresident=!!db.presidentEmail;
   return `<div class="page-title"><div><h2>Settings</h2><p>Chapter options for ${esc(db.chapterName)}. ${admin?"Super admin and the president can change these.":"Captains cannot change chapter-wide settings."}</p></div></div>
     <div class="card"><div class="head">Chapter</div><div class="body">
       <div class="team-grid">
         <div class="field"><label>Chapter name</label><input id="ch_name" ${admin?"":"disabled"} value="${esc(db.chapterName)}"></div>
         <div class="field"><label>City</label><input id="ch_city" ${admin?"":"disabled"} value="${esc(db.city)}"></div>
-        <div class="field"><label>Chairman (display name only)</label><input id="ch_chair" ${admin?"":"disabled"} value="${esc(db.chairmanName)}" placeholder="Shown on reports, not a login"></div>
+        <div class="field"><label>State</label><input id="ch_state" ${admin?"":"disabled"} value="${esc(db.state)}" placeholder="Tamil Nadu"></div>
         <div class="field"><label>Meeting weekday</label>
           <select id="ch_day" ${admin?"":"disabled"}>
             ${DAY.map((d,i)=>`<option value="${i}" ${i===db.meetingDay?"selected":""}>${d}</option>`).join("")}
           </select>
         </div>
         <div class="field"><label>Reporting month</label>${monthPickerHtml()}</div>
-        <div class="field"><label>My password</label>${pwHtml("apw","New password")}</div>
       </div>
       <div class="actions" style="margin-top:10px">
         ${admin?`<button class="btn orange sm" onclick="saveChapter()">Save chapter</button>`:""}
-        <button class="btn orange sm" onclick="saveMyPassword()">Update my password</button>
       </div>
     </div></div>
     ${isSuperAdmin()?`<div class="card"><div class="head">Chapter president (login)</div><div class="body">
-      <div class="notice ok">${hasPresident?"This is who signs in as President for this chapter. Chairman above is only a display name.":"Create the president login for this chapter. They will add teams and captains."}</div>
+      <div class="notice ok">${hasPresident?"This email is how the president signs in to this chapter.":"Create the president login with an email and password. They will add teams and captains."}</div>
       <div class="team-grid">
-        <div class="field"><label>President name</label><input id="pres_name" value="${esc(db.presidentName)}" placeholder="Full name"></div>
+        <div class="field"><label>President email</label><input id="pres_email" type="email" value="${esc(db.presidentEmail)}" placeholder="president@example.com"></div>
         <div class="field"><label>President password</label>${pwHtml("pres_pass", hasPresident?"Leave blank to keep current password":"Password for president login")}</div>
       </div>
       <div class="actions" style="margin-top:10px">
         <button class="btn orange sm" onclick="savePresident()">${hasPresident?"Update president":"Create president"}</button>
       </div>
     </div></div>`:""}
-    <div class="card"><div class="head">Point columns (fixed)</div><div class="body">
+    <div class="card"><div class="head">Point values</div><div class="body">
+      <div class="notice ok">${admin?"Super admin and president can change how many points each activity is worth. Captains use these values when entering scores.":"Only the super admin or president can change point values."}</div>
       <div class="scroll"><table style="min-width:0"><tr><th>Activity</th><th>Points</th><th>How it is entered</th></tr>
-        ${A.map(a=>`<tr><td class="name">${esc(a.name)}</td><td>${a.points}</td><td>${a.kind==="check"?"Weekly present / absent":a.kind==="monthCheck"?"One tick per month":"Type a number"}</td></tr>`).join("")}
+        ${A.map(a=>`<tr><td class="name">${esc(a.name)}</td>
+          <td>${admin?`<input id="pt_${a.key}" class="score-num" style="width:80px" type="number" step="1" value="${a.points}">`:`${a.points}`}</td>
+          <td>${a.kind==="check"?"Weekly present / absent":a.kind==="monthCheck"?"One tick per month":"Type a number"}</td></tr>`).join("")}
       </table></div>
+      ${admin?`<div class="actions" style="margin-top:10px"><button class="btn orange sm" onclick="savePoints()">Save point values</button></div>`:""}
     </div></div>`;
 }
 function pagePlatform(){
-  return `<div class="page-title"><div><h2>Chapters — Super Admin</h2><p>Create a chapter with its president login, then open it to add teams and captains.</p></div></div>
+  return `<div class="page-title"><div><h2>Chapters — Super Admin</h2><p>Create a chapter, then open it to set the president email and add teams.</p></div></div>
     <div class="card"><div class="head">New chapter</div><div class="body">
-      <div class="notice ok">The president signs in to this chapter. Chairman is optional and can be set later under Settings.</div>
       <div class="team-grid">
         <div class="field"><label>Chapter name</label><input id="ncName" placeholder="BOSS Agro Hub"></div>
         <div class="field"><label>City</label><input id="ncCity" placeholder="Udumalpet"></div>
-        <div class="field"><label>President name</label><input id="ncPres" placeholder="President full name"></div>
-        <div class="field"><label>President password</label>${pwHtml("ncPass","Password for president login")}</div>
+        <div class="field"><label>State</label><input id="ncState" placeholder="Tamil Nadu"></div>
+        <div class="field"><label>Meeting weekday</label>
+          <select id="ncDay">${DAY.map((d,i)=>`<option value="${i}" ${i===2?"selected":""}>${d}</option>`).join("")}</select>
+        </div>
       </div>
       <div class="actions" style="margin-top:10px"><button class="btn orange" onclick="createChapter()">Create chapter</button></div>
     </div></div>
     <div class="card"><div class="head">Existing chapters</div><div class="body">
       ${(db.chapters||[]).map(c=>`<div class="member-row" style="grid-template-columns:1fr auto">
-        <div><b>${esc(c.name)}</b><div style="color:var(--muted);font-size:12px">${esc(c.city||"—")} · President: ${esc(c.presidentName||"Not assigned")} · ${c.teams||0} teams · ${c.members||0} members</div></div>
+        <div><b>${esc(c.name)}</b><div style="color:var(--muted);font-size:12px">${esc(placeLine(c.city,c.state)||"—")} · ${DAY[c.meetingDay]||""} · President: ${esc(c.presidentEmail||"Not assigned")} · ${c.teams||0} teams · ${c.members||0} members</div></div>
         <button class="btn orange sm" type="button" onclick="openChapter('${c.id}')">Open chapter</button>
       </div>`).join("")||"<p>None yet. Create the first chapter above.</p>"}
     </div></div>`;
@@ -1036,54 +1073,68 @@ function pagePlatform(){
 async function createChapter(){
   const name=(document.getElementById("ncName").value||"").trim();
   const city=(document.getElementById("ncCity").value||"").trim();
-  const presidentName=(document.getElementById("ncPres").value||"").trim();
-  const presidentPassword=document.getElementById("ncPass").value;
-  if(!name||!presidentName||!presidentPassword) return toast("Chapter name, president name and password required");
+  const state=(document.getElementById("ncState").value||"").trim();
+  const meetingDay=Number(document.getElementById("ncDay").value);
+  if(!name) return toast("Chapter name is required");
   try{
-    const created=await api("POST","/api/chapters",{ name, city, presidentName, presidentPassword });
-    toast("Chapter created");
+    const created=await api("POST","/api/chapters",{ name, city, state, meetingDay });
+    toast("Chapter created — now set the president email in Settings");
     await openChapter(created.id);
+    view="settings";
+    render();
   }catch(e){ toast(e.message); }
 }
 async function saveChapter(){
   if(!canAdminChapter()||!db.chapter) return;
   const name=(document.getElementById("ch_name").value||"").trim();
   const city=(document.getElementById("ch_city").value||"").trim();
-  const chairmanName=(document.getElementById("ch_chair").value||"").trim();
+  const state=(document.getElementById("ch_state").value||"").trim();
   const meetingDay=Number(document.getElementById("ch_day").value);
   if(!name) return toast("Chapter name is required");
   try{
-    await api("PATCH","/api/chapters/"+db.chapter.id,{ name, city, chairmanName, meetingDay });
-    db.chapterName=name; db.city=city; db.chairmanName=chairmanName; db.meetingDay=meetingDay;
-    db.chapter.name=name; db.chapter.city=city; db.chapter.chairmanName=chairmanName; db.chapter.meetingDay=meetingDay;
+    await api("PATCH","/api/chapters/"+db.chapter.id,{ name, city, state, meetingDay });
+    db.chapterName=name; db.city=city; db.state=state; db.meetingDay=meetingDay;
+    db.chapter.name=name; db.chapter.city=city; db.chapter.state=state; db.chapter.meetingDay=meetingDay;
     toast("Chapter saved"); render();
   }catch(e){ toast(e.message); }
 }
 async function savePresident(){
   if(!isSuperAdmin()||!db.chapter) return;
-  const name=(document.getElementById("pres_name").value||"").trim();
+  const email=(document.getElementById("pres_email").value||"").trim();
   const password=(document.getElementById("pres_pass").value||"");
-  if(!name) return toast("President name is required");
-  const existed=!!db.presidentName;
+  if(!email) return toast("President email is required");
+  const existed=!!db.presidentEmail;
   if(!existed && !password) return toast("Password is required to create a president");
   try{
-    const body={ name };
+    const body={ email };
     if(password) body.password=password;
     await api("POST","/api/users/president", body);
-    db.presidentName=name;
-    if(db.chapter) db.chapter.presidentName=name;
+    db.presidentEmail=email;
+    if(db.chapter) db.chapter.presidentEmail=email;
     toast(existed?"President saved":"President created");
     render();
   }catch(e){ toast(e.message); }
 }
-async function saveMyPassword(){
-  const password=document.getElementById("apw").value;
-  try{ await api("PATCH","/api/me/password",{ password }); toast("Password updated"); document.getElementById("apw").value=""; }
-  catch(e){ toast(e.message); }
+async function savePoints(){
+  if(!canAdminChapter()||!db.chapter) return;
+  const activityPoints={};
+  for(const a of A){
+    const el=document.getElementById("pt_"+a.key);
+    const n=Number(el&&el.value);
+    if(!Number.isFinite(n)) return toast("Enter a number for "+a.name);
+    activityPoints[a.key]=n;
+  }
+  try{
+    const out=await api("PATCH","/api/chapters/"+db.chapter.id,{ activityPoints });
+    applyPoints(out.activityPoints||activityPoints);
+    db.activityPoints=out.activityPoints||activityPoints;
+    toast("Point values saved");
+    render();
+  }catch(e){ toast(e.message); }
 }
 
-loadChapters().then(()=>loginFields());
 restoreSession();
+loadChapters().then(()=>loginFields());
 
 </script>
 </body>
