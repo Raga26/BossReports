@@ -312,9 +312,40 @@ function applyPoints(map){
   });
 }
 
-function togglePw(id, btn){ const x=document.getElementById(id); if(!x) return; x.type=x.type==="password"?"text":"password"; if(btn) btn.textContent=x.type==="password"?"👁":"🙈"; }
-function pwHtml(id, placeholder){
-  return `<div class="pw"><input id="${id}" type="password" autocomplete="new-password" placeholder="${esc(placeholder||"")}"><button class="eye" type="button" onclick="togglePw('${id}',this)" aria-label="Show or hide password">👁</button></div>`;
+const PW_MASK="••••••••••";
+function togglePw(id, btn){
+  const x=document.getElementById(id);
+  if(!x) return;
+  if(x.dataset.keep==="1"){
+    toast("The saved password cannot be shown. Type a new password to change it.");
+    return;
+  }
+  x.type=x.type==="password"?"text":"password";
+  if(btn) btn.textContent=x.type==="password"?"👁":"🙈";
+}
+function pwHtml(id, placeholder, hasPassword){
+  const val=hasPassword?PW_MASK:"";
+  const ph=hasPassword?"":(placeholder||"");
+  return `<div class="pw"><input id="${id}" type="password" autocomplete="new-password" placeholder="${esc(ph)}" value="${esc(val)}" data-set="${hasPassword?"1":"0"}" data-keep="${hasPassword?"1":"0"}" onfocus="pwFocus(this)" onblur="pwBlur(this)" oninput="pwTyped(this)"><button class="eye" type="button" onclick="togglePw('${id}',this)" aria-label="Show or hide password">👁</button></div>`;
+}
+function pwFocus(el){
+  if(el.dataset.keep==="1"){
+    el.value="";
+    el.dataset.keep="0";
+  }
+}
+function pwBlur(el){
+  if(el.dataset.set==="1" && !el.value){
+    el.value=PW_MASK;
+    el.dataset.keep="1";
+    el.type="password";
+  }
+}
+function pwTyped(el){ el.dataset.keep="0"; }
+function pwValue(id){
+  const el=document.getElementById(id);
+  if(!el || el.dataset.keep==="1" || el.value===PW_MASK) return "";
+  return el.value;
 }
 
 function captainEmail(team){ const c=(db.captains||[]).find(x=>x.teamId===team.id); return c?(c.email||c.name||""):""; }
@@ -714,7 +745,7 @@ function teamCard(t){
     <div class="notice ok" style="margin-top:12px"><b>Team captain:</b> ${esc(cap||"Not assigned yet")}</div>
     ${canAdminChapter()?`<div class="team-grid" style="margin-top:10px">
       <div class="field"><label>Captain email</label><input id="capEmail_${t.id}" type="email" value="${esc(cap)}" placeholder="captain@example.com"></div>
-      <div class="field"><label>Captain password</label>${pwHtml("capPass_"+t.id, cap?"Leave blank to keep current password":"Password for captain login")}</div>
+      <div class="field"><label>Captain password</label>${pwHtml("capPass_"+t.id, "Password for captain login", !!cap)}</div>
     </div>
     <div class="actions" style="margin-top:8px"><button class="btn orange sm" onclick="saveCaptain('${t.id}')">Save / assign captain</button></div>`:""}
     <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px">
@@ -785,7 +816,7 @@ function deleteTeam(id){
 }
 async function saveCaptain(teamId){
   const email=(document.getElementById("capEmail_"+teamId).value||"").trim();
-  const password=document.getElementById("capPass_"+teamId).value;
+  const password=pwValue("capPass_"+teamId);
   if(!email) return toast("Captain email required");
   const current=captainEmail(teamById(teamId));
   if(!password && email.toLowerCase()!==String(current||"").toLowerCase()) return toast("Password is required to create a captain");
@@ -1034,7 +1065,7 @@ function pageSettings(){
       <div class="notice ok">${hasPresident?"This email is how the president signs in to this chapter.":"Create the president login with an email and password. They will add teams and captains."}</div>
       <div class="team-grid">
         <div class="field"><label>President email</label><input id="pres_email" type="email" value="${esc(db.presidentEmail)}" placeholder="president@example.com"></div>
-        <div class="field"><label>President password</label>${pwHtml("pres_pass", hasPresident?"Leave blank to keep current password":"Password for president login")}</div>
+        <div class="field"><label>President password</label>${pwHtml("pres_pass", "Password for president login", hasPresident)}</div>
       </div>
       <div class="actions" style="margin-top:10px">
         <button class="btn orange sm" onclick="savePresident()">${hasPresident?"Update president":"Create president"}</button>
@@ -1101,7 +1132,7 @@ async function saveChapter(){
 async function savePresident(){
   if(!isSuperAdmin()||!db.chapter) return;
   const email=(document.getElementById("pres_email").value||"").trim();
-  const password=(document.getElementById("pres_pass").value||"");
+  const password=pwValue("pres_pass");
   if(!email) return toast("President email is required");
   const existed=!!db.presidentEmail;
   if(!existed && !password) return toast("Password is required to create a president");
